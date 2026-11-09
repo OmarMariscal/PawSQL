@@ -13,11 +13,14 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./db-init:/docker-entrypoint-initdb.d
+    networks:
+      - PawSQL_network
 
   backend:
     build:
       context: ./backend
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
     container_name: spring_backend
     restart: always
     ports:
@@ -28,6 +31,27 @@ services:
       SPRING_DATASOURCE_PASSWORD: greñuditos
     depends_on:
       - db
+    networks:
+      - PawSQL_network
+
+  frontend: 
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: PawSQL_Frontend
+    restart: always
+    ports: 
+      - "5173:5173"
+    depends_on:
+      - backend
+    networks:
+      - PawSQL_network
 
 volumes:
   postgres_data:
+    name: paw_data
+
+networks:
+  PawSQL_network:
+    driver: bridge
+  
