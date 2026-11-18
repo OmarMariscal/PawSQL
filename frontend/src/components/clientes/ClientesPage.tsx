@@ -6,6 +6,7 @@ import { TablePanel }      from '../ui/TablePanel'
 import { ClientesTable }   from './ClientesTable'
 import { ClienteForm }     from './ClienteForm'
 import { DeleteModal }     from '../ui/DeleteModal'
+import { humanizeApiError } from '../../utils/apiErrorMessage'
 import type { Cliente, ClienteInput, ApiError } from '../../types'
 
 const ICON = (
@@ -25,6 +26,8 @@ export function ClientesPage() {
   const [formOpen,     setFormOpen]     = useState(false)
   const [editing,      setEditing]      = useState<Cliente | null>(null)
   const [deletingItem, setDeletingItem] = useState<Cliente | null>(null)
+  const [formError,    setFormError]    = useState<string | null>(null)
+  const [deleteError,  setDeleteError]  = useState<string | null>(null)
 
   const filtered = data.filter((c) => {
     const q = search.toLowerCase()
@@ -35,34 +38,38 @@ export function ClientesPage() {
     )
   })
 
-  function openNew()          { setEditing(null); setFormOpen(true) }
-  function openEdit(c: Cliente) { setEditing(c);    setFormOpen(true) }
-  function closeForm()        { setFormOpen(false); setEditing(null)  }
+  function openNew()            { setEditing(null); setFormOpen(true); setFormError(null) }
+  function openEdit(c: Cliente) { setEditing(c);    setFormOpen(true); setFormError(null) }
+  function closeForm()          { setFormOpen(false); setEditing(null); setFormError(null) }
 
   async function handleSubmit(data: ClienteInput) {
     try {
       if (editing) {
         await updateMutation.mutateAsync({ id: editing.id_cliente, body: data })
-        showToast('Cambios guardados correctamente.')
+        showToast('Cambios guardados correctamente.', 'success')
       } else {
         await createMutation.mutateAsync(data)
-        showToast('Registro agregado correctamente.')
+        showToast('Registro agregado correctamente.', 'success')
       }
       closeForm()
     } catch (err) {
-      showToast((err as ApiError).message)
+      const msg = humanizeApiError(err as ApiError)
+      showToast(msg, 'error')
+      setFormError(msg)
     }
   }
 
   async function handleDelete() {
     if (!deletingItem) return
+    setDeleteError(null)
     try {
       await deleteMutation.mutateAsync(deletingItem.id_cliente)
-      showToast('Registro eliminado correctamente.')
-    } catch (err) {
-      showToast((err as ApiError).message)
-    } finally {
+      showToast('Registro eliminado correctamente.', 'success')
       setDeletingItem(null)
+    } catch (err) {
+      const msg = humanizeApiError(err as ApiError)
+      showToast(msg, 'error')
+      setDeleteError(msg)
     }
   }
 
@@ -96,16 +103,18 @@ export function ClientesPage() {
         onClose={closeForm}
         onSubmit={handleSubmit}
         submitting={createMutation.isPending || updateMutation.isPending}
+        formError={formError}
+        onClearError={() => setFormError(null)}
       />
 
       <DeleteModal
         open={!!deletingItem}
         message={deletingItem ? `Se eliminará a "${deletingItem.nombre}" y todas sus mascotas. Esta acción no se puede deshacer.` : ''}
-        onCancel={() => setDeletingItem(null)}
+        onCancel={() => { setDeletingItem(null); setDeleteError(null) }}
         onConfirm={handleDelete}
         loading={deleteMutation.isPending}
+        deleteError={deleteError}
       />
     </>
   )
 }
-

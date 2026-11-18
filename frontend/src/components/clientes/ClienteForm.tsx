@@ -1,22 +1,25 @@
 import { useEffect } from 'react'
 import { useForm }   from 'react-hook-form'
 import type { Cliente, ClienteInput } from '../../types'
-import { Modal }     from '../ui/Modal'
+import { Modal }             from '../ui/Modal'
+import { FormErrorBanner }   from '../ui/FormErrorBanner'
 
 const INPUT_CLS =
   'mt-1.5 h-10 w-full rounded-xl border border-sage-200 bg-sage-50/50 px-3.5 text-xs text-pine-900 placeholder:text-slate-300 transition'
 const LABEL_CLS = 'text-[10px] font-bold text-pine-900'
 
 interface ClienteFormProps {
-  open:      boolean
-  editing:   Cliente | null
-  onClose:   () => void
-  onSubmit:  (data: ClienteInput) => void
-  submitting: boolean
+  open:        boolean
+  editing:     Cliente | null
+  onClose:     () => void
+  onSubmit:    (data: ClienteInput) => void
+  submitting:  boolean
+  formError:   string | null
+  onClearError: () => void
 }
 
-export function ClienteForm({ open, editing, onClose, onSubmit, submitting }: ClienteFormProps) {
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<ClienteInput>()
+export function ClienteForm({ open, editing, onClose, onSubmit, submitting, formError, onClearError }: ClienteFormProps) {
+  const { register, handleSubmit, reset, watch, formState: { errors } } = useForm<ClienteInput>()
 
   useEffect(() => {
     if (open) {
@@ -25,8 +28,15 @@ export function ClienteForm({ open, editing, onClose, onSubmit, submitting }: Cl
           ? { nombre: editing.nombre, telefono: editing.telefono ?? '', email: editing.email ?? '' }
           : { nombre: '', telefono: '', email: '' },
       )
+      onClearError()
     }
-  }, [open, editing, reset])
+  }, [open, editing, reset]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Clear API error when the user edits any field
+  useEffect(() => {
+    const sub = watch(() => { if (formError) onClearError() })
+    return () => sub.unsubscribe()
+  }, [watch, formError, onClearError])
 
   const isNew = editing === null
 
@@ -98,7 +108,12 @@ export function ClienteForm({ open, editing, onClose, onSubmit, submitting }: Cl
             </div>
           </div>
 
-          <div className="mt-7 flex flex-col-reverse gap-2 border-t border-sage-100 pt-5 sm:flex-row sm:justify-end">
+          {/* API Error Banner */}
+          <div className="mt-5">
+            <FormErrorBanner error={formError} onDismiss={onClearError} />
+          </div>
+
+          <div className="mt-2 flex flex-col-reverse gap-2 border-t border-sage-100 pt-5 sm:flex-row sm:justify-end">
             <button
               type="button"
               onClick={onClose}
@@ -120,4 +135,3 @@ export function ClienteForm({ open, editing, onClose, onSubmit, submitting }: Cl
     </Modal>
   )
 }
-

@@ -1,7 +1,8 @@
 import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import type { Tratamiento, TratamientoInput } from '../../types'
-import { Modal } from '../ui/Modal'
+import { Modal }           from '../ui/Modal'
+import { FormErrorBanner } from '../ui/FormErrorBanner'
 
 const INPUT_CLS =
   'mt-1.5 h-10 w-full rounded-xl border border-sage-200 bg-sage-50/50 px-3.5 text-xs text-pine-900 placeholder:text-slate-300 transition'
@@ -14,15 +15,17 @@ interface FormValues {
 }
 
 interface TratamientoFormProps {
-  open:       boolean
-  editing:    Tratamiento | null
-  onClose:    () => void
-  onSubmit:   (data: TratamientoInput) => void
-  submitting: boolean
+  open:         boolean
+  editing:      Tratamiento | null
+  onClose:      () => void
+  onSubmit:     (data: TratamientoInput) => void
+  submitting:   boolean
+  formError:    string | null
+  onClearError: () => void
 }
 
-export function TratamientoForm({ open, editing, onClose, onSubmit, submitting }: TratamientoFormProps) {
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<FormValues>()
+export function TratamientoForm({ open, editing, onClose, onSubmit, submitting, formError, onClearError }: TratamientoFormProps) {
+  const { register, handleSubmit, reset, watch, formState: { errors } } = useForm<FormValues>()
 
   useEffect(() => {
     if (open) {
@@ -35,8 +38,15 @@ export function TratamientoForm({ open, editing, onClose, onSubmit, submitting }
             }
           : { nombre: '', descripcion: '', costo: '' },
       )
+      onClearError()
     }
-  }, [open, editing, reset])
+  }, [open, editing, reset]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Clear API error when the user edits any field
+  useEffect(() => {
+    const sub = watch(() => { if (formError) onClearError() })
+    return () => sub.unsubscribe()
+  }, [watch, formError, onClearError])
 
   const isNew = editing === null
 
@@ -120,7 +130,12 @@ export function TratamientoForm({ open, editing, onClose, onSubmit, submitting }
             </div>
           </div>
 
-          <div className="mt-7 flex flex-col-reverse gap-2 border-t border-sage-100 pt-5 sm:flex-row sm:justify-end">
+          {/* API Error Banner */}
+          <div className="mt-5">
+            <FormErrorBanner error={formError} onDismiss={onClearError} />
+          </div>
+
+          <div className="mt-2 flex flex-col-reverse gap-2 border-t border-sage-100 pt-5 sm:flex-row sm:justify-end">
             <button
               type="button"
               onClick={onClose}
@@ -142,4 +157,3 @@ export function TratamientoForm({ open, editing, onClose, onSubmit, submitting }
     </Modal>
   )
 }
-

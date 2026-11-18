@@ -1,7 +1,8 @@
 import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import type { Mascota, MascotaInput, Cliente } from '../../types'
-import { Modal } from '../ui/Modal'
+import { Modal }           from '../ui/Modal'
+import { FormErrorBanner } from '../ui/FormErrorBanner'
 
 const INPUT_CLS =
   'mt-1.5 h-10 w-full rounded-xl border border-sage-200 bg-sage-50/50 px-3.5 text-xs text-pine-900 placeholder:text-slate-300 transition'
@@ -12,18 +13,20 @@ const ESPECIES = ['Perro', 'Gato', 'Ave', 'Conejo', 'Otro'] as const
 interface FormValues {
   id_cliente:       string
   nombre:           string
-  especie:          "Perro" | "Gato" | "Ave" | "Conejo" | "Otro"
+  especie:          'Perro' | 'Gato' | 'Ave' | 'Conejo' | 'Otro'
   raza:             string
   fecha_nacimiento: string
 }
 
 interface MascotaFormProps {
-  open:       boolean
-  editing:    Mascota | null
-  clientes:   Cliente[]
-  onClose:    () => void
-  onSubmit:   (data: MascotaInput) => void
-  submitting: boolean
+  open:         boolean
+  editing:      Mascota | null
+  clientes:     Cliente[]
+  onClose:      () => void
+  onSubmit:     (data: MascotaInput) => void
+  submitting:   boolean
+  formError:    string | null
+  onClearError: () => void
 }
 
 export function MascotaForm({
@@ -33,8 +36,10 @@ export function MascotaForm({
   onClose,
   onSubmit,
   submitting,
+  formError,
+  onClearError,
 }: MascotaFormProps) {
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<FormValues>()
+  const { register, handleSubmit, reset, watch, formState: { errors } } = useForm<FormValues>()
 
   useEffect(() => {
     if (open) {
@@ -55,8 +60,15 @@ export function MascotaForm({
               fecha_nacimiento: '',
             },
       )
+      onClearError()
     }
-  }, [open, editing, clientes, reset])
+  }, [open, editing, clientes, reset]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Clear API error when the user edits any field
+  useEffect(() => {
+    const sub = watch(() => { if (formError) onClearError() })
+    return () => sub.unsubscribe()
+  }, [watch, formError, onClearError])
 
   const isNew = editing === null
 
@@ -176,7 +188,12 @@ export function MascotaForm({
             </div>
           </div>
 
-          <div className="mt-7 flex flex-col-reverse gap-2 border-t border-sage-100 pt-5 sm:flex-row sm:justify-end">
+          {/* API Error Banner */}
+          <div className="mt-5">
+            <FormErrorBanner error={formError} onDismiss={onClearError} />
+          </div>
+
+          <div className="mt-2 flex flex-col-reverse gap-2 border-t border-sage-100 pt-5 sm:flex-row sm:justify-end">
             <button
               type="button"
               onClick={onClose}
@@ -198,4 +215,3 @@ export function MascotaForm({
     </Modal>
   )
 }
-

@@ -9,8 +9,9 @@ import { useToast } from '../ui/useToast'
 import { PageHeading, PageNote } from '../ui/PageHeading'
 import { TablePanel } from '../ui/TablePanel'
 import { VeterinariosTable } from './VeterinariosTable'
-import { VeterinarioForm } from './VeterinarioForm'
-import { DeleteModal } from '../ui/DeleteModal'
+import { VeterinarioForm }   from './VeterinarioForm'
+import { DeleteModal }       from '../ui/DeleteModal'
+import { humanizeApiError }  from '../../utils/apiErrorMessage'
 import type { Veterinario, VeterinarioInput, ApiError } from '../../types'
 
 const ICON = (
@@ -27,10 +28,12 @@ export function VeterinariosPage() {
   const deleteMutation = useDeleteVeterinario()
   const { showToast } = useToast()
 
-  const [search, setSearch] = useState('')
-  const [formOpen, setFormOpen] = useState(false)
-  const [editing, setEditing] = useState<Veterinario | null>(null)
+  const [search,       setSearch]       = useState('')
+  const [formOpen,     setFormOpen]     = useState(false)
+  const [editing,      setEditing]      = useState<Veterinario | null>(null)
   const [deletingItem, setDeletingItem] = useState<Veterinario | null>(null)
+  const [formError,    setFormError]    = useState<string | null>(null)
+  const [deleteError,  setDeleteError]  = useState<string | null>(null)
 
   const filtered = data.filter((v) => {
     const q = search.toLowerCase()
@@ -44,42 +47,49 @@ export function VeterinariosPage() {
   function openNew() {
     setEditing(null)
     setFormOpen(true)
+    setFormError(null)
   }
 
   function openEdit(v: Veterinario) {
     setEditing(v)
     setFormOpen(true)
+    setFormError(null)
   }
 
   function closeForm() {
     setFormOpen(false)
     setEditing(null)
+    setFormError(null)
   }
 
   async function handleSubmit(formData: VeterinarioInput) {
     try {
       if (editing) {
         await updateMutation.mutateAsync({ id: editing.id_veterinario, body: formData })
-        showToast('Cambios guardados correctamente.')
+        showToast('Cambios guardados correctamente.', 'success')
       } else {
         await createMutation.mutateAsync(formData)
-        showToast('Registro agregado correctamente.')
+        showToast('Registro agregado correctamente.', 'success')
       }
       closeForm()
     } catch (err) {
-      showToast((err as ApiError).message)
+      const msg = humanizeApiError(err as ApiError)
+      showToast(msg, 'error')
+      setFormError(msg)
     }
   }
 
   async function handleDelete() {
     if (!deletingItem) return
+    setDeleteError(null)
     try {
       await deleteMutation.mutateAsync(deletingItem.id_veterinario)
-      showToast('Registro eliminado correctamente.')
-    } catch (err) {
-      showToast((err as ApiError).message)
-    } finally {
+      showToast('Registro eliminado correctamente.', 'success')
       setDeletingItem(null)
+    } catch (err) {
+      const msg = humanizeApiError(err as ApiError)
+      showToast(msg, 'error')
+      setDeleteError(msg)
     }
   }
 
@@ -113,14 +123,17 @@ export function VeterinariosPage() {
         onClose={closeForm}
         onSubmit={handleSubmit}
         submitting={createMutation.isPending || updateMutation.isPending}
+        formError={formError}
+        onClearError={() => setFormError(null)}
       />
 
       <DeleteModal
         open={!!deletingItem}
         message={deletingItem ? `Se eliminará al veterinario "${deletingItem.nombre}". Esta acción no se puede deshacer.` : ''}
-        onCancel={() => setDeletingItem(null)}
+        onCancel={() => { setDeletingItem(null); setDeleteError(null) }}
         onConfirm={handleDelete}
         loading={deleteMutation.isPending}
+        deleteError={deleteError}
       />
     </>
   )

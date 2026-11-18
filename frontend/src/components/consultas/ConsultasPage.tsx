@@ -14,6 +14,7 @@ import { TablePanel }      from '../ui/TablePanel'
 import { ConsultasTable }  from './ConsultasTable'
 import { ConsultaForm }    from './ConsultaForm'
 import { DeleteModal }     from '../ui/DeleteModal'
+import { humanizeApiError } from '../../utils/apiErrorMessage'
 import type { Consulta, ConsultaInput, ApiError } from '../../types'
 
 const ICON = (
@@ -37,6 +38,8 @@ export function ConsultasPage() {
   const [formOpen, setFormOpen]         = useState(false)
   const [editing, setEditing]           = useState<Consulta | null>(null)
   const [deletingItem, setDeletingItem] = useState<Consulta | null>(null)
+  const [formError, setFormError]       = useState<string | null>(null)
+  const [deleteError, setDeleteError]   = useState<string | null>(null)
 
   const filtered = data.filter((c) => {
     const q = search.toLowerCase()
@@ -52,42 +55,49 @@ export function ConsultasPage() {
   function openNew() {
     setEditing(null)
     setFormOpen(true)
+    setFormError(null)
   }
 
   function openEdit(c: Consulta) {
     setEditing(c)
     setFormOpen(true)
+    setFormError(null)
   }
 
   function closeForm() {
     setFormOpen(false)
     setEditing(null)
+    setFormError(null)
   }
 
   async function handleSubmit(formData: ConsultaInput) {
     try {
       if (editing) {
         await updateMutation.mutateAsync({ id: editing.id_consulta, body: formData })
-        showToast('Cambios guardados correctamente.')
+        showToast('Cambios guardados correctamente.', 'success')
       } else {
         await createMutation.mutateAsync(formData)
-        showToast('Registro agregado correctamente.')
+        showToast('Registro agregado correctamente.', 'success')
       }
       closeForm()
     } catch (err) {
-      showToast((err as ApiError).message)
+      const msg = humanizeApiError(err as ApiError)
+      showToast(msg, 'error')
+      setFormError(msg)
     }
   }
 
   async function handleDelete() {
     if (!deletingItem) return
+    setDeleteError(null)
     try {
       await deleteMutation.mutateAsync(deletingItem.id_consulta)
-      showToast('Registro eliminado correctamente.')
-    } catch (err) {
-      showToast((err as ApiError).message)
-    } finally {
+      showToast('Registro eliminado correctamente.', 'success')
       setDeletingItem(null)
+    } catch (err) {
+      const msg = humanizeApiError(err as ApiError)
+      showToast(msg, 'error')
+      setDeleteError(msg)
     }
   }
 
@@ -124,14 +134,17 @@ export function ConsultasPage() {
         onClose={closeForm}
         onSubmit={handleSubmit}
         submitting={createMutation.isPending || updateMutation.isPending}
+        formError={formError}
+        onClearError={() => setFormError(null)}
       />
 
       <DeleteModal
         open={!!deletingItem}
         message={deletingItem ? `Se eliminará la consulta del día ${deletingItem.fecha_consulta}. Esta acción no se puede deshacer.` : ''}
-        onCancel={() => setDeletingItem(null)}
+        onCancel={() => { setDeletingItem(null); setDeleteError(null) }}
         onConfirm={handleDelete}
         loading={deleteMutation.isPending}
+        deleteError={deleteError}
       />
     </>
   )

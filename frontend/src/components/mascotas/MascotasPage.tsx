@@ -5,13 +5,14 @@ import {
   useUpdateMascota,
   useDeleteMascota,
 } from '../../hooks/useMascotas'
-import { useClientes } from '../../hooks/useClientes'
-import { useToast }    from '../ui/useToast'
+import { useClientes }  from '../../hooks/useClientes'
+import { useToast }     from '../ui/useToast'
 import { PageHeading, PageNote } from '../ui/PageHeading'
-import { TablePanel }  from '../ui/TablePanel'
-import { MascotasTable } from './MascotasTable'
-import { MascotaForm }   from './MascotaForm'
-import { DeleteModal }   from '../ui/DeleteModal'
+import { TablePanel }   from '../ui/TablePanel'
+import { MascotasTable }  from './MascotasTable'
+import { MascotaForm }    from './MascotaForm'
+import { DeleteModal }    from '../ui/DeleteModal'
+import { humanizeApiError } from '../../utils/apiErrorMessage'
 import type { Mascota, MascotaInput, ApiError } from '../../types'
 
 const ICON = (
@@ -26,16 +27,18 @@ const ICON = (
 
 export function MascotasPage() {
   const { data = [], isLoading } = useMascotas()
-  const { data: clientes = [] }   = useClientes()
+  const { data: clientes = [] }  = useClientes()
   const createMutation = useCreateMascota()
   const updateMutation = useUpdateMascota()
   const deleteMutation = useDeleteMascota()
   const { showToast }  = useToast()
 
-  const [search, setSearch]             = useState('')
-  const [formOpen, setFormOpen]         = useState(false)
-  const [editing, setEditing]           = useState<Mascota | null>(null)
+  const [search,       setSearch]       = useState('')
+  const [formOpen,     setFormOpen]     = useState(false)
+  const [editing,      setEditing]      = useState<Mascota | null>(null)
   const [deletingItem, setDeletingItem] = useState<Mascota | null>(null)
+  const [formError,    setFormError]    = useState<string | null>(null)
+  const [deleteError,  setDeleteError]  = useState<string | null>(null)
 
   const filtered = data.filter((m) => {
     const q = search.toLowerCase()
@@ -50,42 +53,49 @@ export function MascotasPage() {
   function openNew() {
     setEditing(null)
     setFormOpen(true)
+    setFormError(null)
   }
 
   function openEdit(m: Mascota) {
     setEditing(m)
     setFormOpen(true)
+    setFormError(null)
   }
 
   function closeForm() {
     setFormOpen(false)
     setEditing(null)
+    setFormError(null)
   }
 
   async function handleSubmit(formData: MascotaInput) {
     try {
       if (editing) {
         await updateMutation.mutateAsync({ id: editing.id_mascota, body: formData })
-        showToast('Cambios guardados correctamente.')
+        showToast('Cambios guardados correctamente.', 'success')
       } else {
         await createMutation.mutateAsync(formData)
-        showToast('Registro agregado correctamente.')
+        showToast('Registro agregado correctamente.', 'success')
       }
       closeForm()
     } catch (err) {
-      showToast((err as ApiError).message)
+      const msg = humanizeApiError(err as ApiError)
+      showToast(msg, 'error')
+      setFormError(msg)
     }
   }
 
   async function handleDelete() {
     if (!deletingItem) return
+    setDeleteError(null)
     try {
       await deleteMutation.mutateAsync(deletingItem.id_mascota)
-      showToast('Registro eliminado correctamente.')
-    } catch (err) {
-      showToast((err as ApiError).message)
-    } finally {
+      showToast('Registro eliminado correctamente.', 'success')
       setDeletingItem(null)
+    } catch (err) {
+      const msg = humanizeApiError(err as ApiError)
+      showToast(msg, 'error')
+      setDeleteError(msg)
     }
   }
 
@@ -120,14 +130,17 @@ export function MascotasPage() {
         onClose={closeForm}
         onSubmit={handleSubmit}
         submitting={createMutation.isPending || updateMutation.isPending}
+        formError={formError}
+        onClearError={() => setFormError(null)}
       />
 
       <DeleteModal
         open={!!deletingItem}
         message={deletingItem ? `Se eliminará a la mascota "${deletingItem.nombre}". Esta acción no se puede deshacer.` : ''}
-        onCancel={() => setDeletingItem(null)}
+        onCancel={() => { setDeletingItem(null); setDeleteError(null) }}
         onConfirm={handleDelete}
         loading={deleteMutation.isPending}
+        deleteError={deleteError}
       />
     </>
   )

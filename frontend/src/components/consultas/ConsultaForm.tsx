@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import type {
   Consulta,
@@ -8,8 +8,9 @@ import type {
   Veterinario,
   Tratamiento,
 } from '../../types'
-import { formatMoney } from '../../utils/formatMoney'
-import { Modal } from '../ui/Modal'
+import { formatMoney }     from '../../utils/formatMoney'
+import { Modal }           from '../ui/Modal'
+import { FormErrorBanner } from '../ui/FormErrorBanner'
 
 const INPUT_CLS =
   'mt-1.5 h-10 w-full rounded-xl border border-sage-200 bg-sage-50/50 px-3.5 text-xs text-pine-900 placeholder:text-slate-300 transition'
@@ -37,6 +38,8 @@ interface ConsultaFormProps {
   onClose:      () => void
   onSubmit:     (data: ConsultaInput) => void
   submitting:   boolean
+  formError:    string | null
+  onClearError: () => void
 }
 
 function ConsultaFormModal({
@@ -47,10 +50,12 @@ function ConsultaFormModal({
   onClose,
   onSubmit,
   submitting,
+  formError,
+  onClearError,
 }: Omit<ConsultaFormProps, 'open'>) {
   const isNew = editing === null
 
-  const { register, handleSubmit, formState: { errors } } = useForm<FormValues>({
+  const { register, handleSubmit, watch, formState: { errors } } = useForm<FormValues>({
     defaultValues: editing
       ? {
           id_mascota:     String(editing.id_mascota),
@@ -80,6 +85,12 @@ function ConsultaFormModal({
     return initialMap
   })
 
+  // Clear API error when the user edits any field
+  useEffect(() => {
+    const sub = watch(() => { if (formError) onClearError() })
+    return () => sub.unsubscribe()
+  }, [watch, formError, onClearError])
+
   function toggleTrat(id: number, checked: boolean) {
     setTratState((prev) => ({
       ...prev,
@@ -88,6 +99,7 @@ function ConsultaFormModal({
         dosis_o_indicacion: prev[id]?.dosis_o_indicacion ?? '',
       },
     }))
+    if (formError) onClearError()
   }
 
   function setDosis(id: number, val: string) {
@@ -277,7 +289,12 @@ function ConsultaFormModal({
           )}
         </div>
 
-        <div className="mt-7 flex flex-col-reverse gap-2 border-t border-sage-100 pt-5 sm:flex-row sm:justify-end">
+        {/* API Error Banner */}
+        <div className="mt-5">
+          <FormErrorBanner error={formError} onDismiss={onClearError} />
+        </div>
+
+        <div className="mt-2 flex flex-col-reverse gap-2 border-t border-sage-100 pt-5 sm:flex-row sm:justify-end">
           <button
             type="button"
             onClick={onClose}
