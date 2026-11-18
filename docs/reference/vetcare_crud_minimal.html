@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PawSQL · Gestión veterinaria</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            pine: { 950: '#102f2d', 900: '#173c39', 800: '#20534d', 700: '#2f6b62', 600: '#47877b' },
+            sage: { 50: '#f5f8f5', 100: '#eaf1eb', 200: '#d9e6dc', 300: '#c3d6c8' },
+            coral: { 100: '#faeee7', 300: '#edc0a9', 500: '#d88d6a' },
+            ink: '#263a36',
+            canvas: '#f6f7f3'
+          },
+          fontFamily: { sans: ['DM Sans', 'Inter', 'ui-sans-serif', 'system-ui'] },
+          boxShadow: {
+            soft: '0 12px 32px rgba(27, 62, 55, .07)',
+            panel: '0 2px 10px rgba(27, 62, 55, .045)'
+          }
+        }
+      }
+    };
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * { -webkit-tap-highlight-color: transparent; }
+    body { background: #f6f7f3; }
+    .nav-link { transition: background .2s ease, color .2s ease, transform .2s ease; }
+    .nav-link:hover { transform: translateX(2px); }
+    .nav-link.active { background: rgba(255,255,255,.13); color: #fff; box-shadow: inset 3px 0 0 #e8b59a; }
+    .table-row { transition: background .18s ease; }
+    .table-row:hover { background: #f8fbf8; }
+    .icon-btn { transition: all .18s ease; }
+    .icon-btn:hover { background: #eaf1eb; color: #20534d; transform: translateY(-1px); }
+    .modal-backdrop { animation: fadeIn .18s ease-out; }
+    .modal-card { animation: liftIn .22s ease-out; }
+    @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+    @keyframes liftIn { from { opacity: 0; transform: translateY(12px) scale(.985) } to { opacity: 1; transform: translateY(0) scale(1) } }
+    .pet-orbit { animation: float 5s ease-in-out infinite; transform-origin: center; }
+    @keyframes float { 0%,100% { transform: translateY(0) rotate(-2deg) } 50% { transform: translateY(-5px) rotate(2deg) } }
+    .soft-scroll::-webkit-scrollbar { height: 7px; width: 7px; }
+    .soft-scroll::-webkit-scrollbar-thumb { background: #d7e2d9; border-radius: 8px; }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: #47877b !important; box-shadow: 0 0 0 3px rgba(71,135,123,.12); }
+    @media (max-width: 760px) {
+      .sidebar { transform: translateX(-100%); transition: transform .25s ease; }
+      .sidebar.open { transform: translateX(0); }
+      .mobile-shade.show { display: block; }
+    }
+  </style>
+</head>
+<body class="font-sans text-ink antialiased">
+  <div class="min-h-screen">
+    <div id="mobileShade" class="mobile-shade hidden fixed inset-0 z-30 bg-pine-950/40 md:hidden" onclick="toggleSidebar(false)"></div>
+
+    <!-- Sidebar -->
+    <aside id="sidebar" class="sidebar fixed inset-y-0 left-0 z-40 flex w-[250px] flex-col bg-pine-950 text-white md:translate-x-0">
+      <div class="flex h-[86px] items-center gap-3 border-b border-white/10 px-7">
+        <div class="grid h-10 w-10 place-items-center rounded-2xl bg-white/10 text-coral-300">
+          <svg viewBox="0 0 40 40" class="h-7 w-7" fill="none" aria-hidden="true">
+            <path d="M20 34s-12-7.1-12-17.2C8 11.4 11.2 8 15.1 8c2.3 0 4 1.2 4.9 3 1-1.8 2.7-3 5-3C28.8 8 32 11.4 32 16.8 32 26.9 20 34 20 34Z" stroke="currentColor" stroke-width="2.1" stroke-linejoin="round"/>
+            <path d="M14.3 19.3h4l1.7-3.2 2.2 7 1.5-3.8h2.1" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div>
+          <div class="font-[Manrope] text-[19px] font-extrabold tracking-tight">PawSQL<span class="text-coral-300">.</span></div>
+          <div class="-mt-0.5 text-[10px] font-semibold uppercase tracking-[.2em] text-white/45">Gestión veterinaria</div>
+        </div>
+      </div>
+
+      <div class="px-5 pt-8">
+        <p class="mb-3 px-3 text-[10px] font-bold uppercase tracking-[.2em] text-white/35">Menú principal</p>
+        <nav id="mainNav" class="space-y-1.5">
+          <button data-section="clientes" class="nav-link active flex w-full items-center gap-3 rounded-xl px-3.5 py-3 text-left text-[13px] font-semibold text-white/70" onclick="switchSection('clientes')">
+            <svg class="h-[18px] w-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 20v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 4 18.5V20M10 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM16 4.2a4 4 0 0 1 0 7.6M20 20v-1.5a3.5 3.5 0 0 0-2.5-3.35" stroke-linecap="round"/></svg>
+            Clientes
+          </button>
+          <button data-section="mascotas" class="nav-link flex w-full items-center gap-3 rounded-xl px-3.5 py-3 text-left text-[13px] font-semibold text-white/65" onclick="switchSection('mascotas')">
+            <svg class="h-[18px] w-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20.5c-3.8 0-7-2.2-7-5.2 0-2.2 1.8-3.8 4-3.8 1.3 0 2.2.5 3 1.3.8-.8 1.7-1.3 3-1.3 2.2 0 4 1.6 4 3.8 0 3-3.2 5.2-7 5.2Z"/><ellipse cx="5.2" cy="7.3" rx="2" ry="2.7"/><ellipse cx="10.1" cy="4.8" rx="2" ry="2.7"/><ellipse cx="16" cy="4.8" rx="2" ry="2.7"/><ellipse cx="20.2" cy="7.8" rx="2" ry="2.7"/></svg>
+            Mascotas
+          </button>
+          <button data-section="veterinarios" class="nav-link flex w-full items-center gap-3 rounded-xl px-3.5 py-3 text-left text-[13px] font-semibold text-white/65" onclick="switchSection('veterinarios')">
+            <svg class="h-[18px] w-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 21s-7-3.7-7-9.2V5.2L12 2l7 3.2v6.6C19 17.3 12 21 12 21Z"/><path d="M12 7v7M8.5 10.5h7" stroke-linecap="round"/></svg>
+            Veterinarios
+          </button>
+          <button data-section="consultas" class="nav-link flex w-full items-center gap-3 rounded-xl px-3.5 py-3 text-left text-[13px] font-semibold text-white/65" onclick="switchSection('consultas')">
+            <svg class="h-[18px] w-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="3.5" width="16" height="17" rx="2.5"/><path d="M8 8h8M8 12h3m2 0h3m-8 4h8M8 1.8v3.4M16 1.8v3.4" stroke-linecap="round"/></svg>
+            Consultas
+          </button>
+          <button data-section="tratamientos" class="nav-link flex w-full items-center gap-3 rounded-xl px-3.5 py-3 text-left text-[13px] font-semibold text-white/65" onclick="switchSection('tratamientos')">
+            <svg class="h-[18px] w-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m4.7 16.5 7.8-7.8a4 4 0 0 1 5.7 5.7l-7.8 7.8a4 4 0 0 1-5.7-5.7Z"/><path d="m8 13.2 5.7 5.7M8 5.5l2 2m4-5 .8 2.8m5.7 1.2-2.1 2.1" stroke-linecap="round"/></svg>
+            Tratamientos
+          </button>
+        </nav>
+      </div>
+
+      <div class="mt-auto px-5 pb-6">
+        <div class="rounded-2xl border border-white/10 bg-white/[.055] p-4">
+          <div class="mb-2 flex items-center gap-2 text-coral-300">
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v18M3 12h18" stroke-linecap="round"/></svg>
+            <span class="text-[10px] font-bold uppercase tracking-[.16em]">PawSQL</span>
+          </div>
+          <p class="text-xs leading-5 text-white/65">Una forma sencilla de organizar la atención de cada mascota.</p>
+        </div>
+        <div class="mt-5 flex items-center gap-2 px-2 text-[10px] text-white/35">
+          <span class="h-1.5 w-1.5 rounded-full bg-emerald-300"></span>
+          Proyecto académico · PostgreSQL
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main area -->
+    <main class="min-h-screen md:pl-[250px]">
+      <header class="sticky top-0 z-20 flex h-[74px] items-center justify-between border-b border-sage-200/80 bg-white/90 px-5 backdrop-blur-xl sm:px-8 lg:px-10">
+        <div class="flex items-center gap-3">
+          <button class="rounded-xl p-2 text-pine-800 hover:bg-sage-100 md:hidden" onclick="toggleSidebar(true)" aria-label="Abrir menú">
+            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16" stroke-linecap="round"/></svg>
+          </button>
+          <div class="hidden text-xs text-slate-400 sm:block">PawSQL <span class="mx-2 text-sage-300">/</span> <span id="breadcrumb" class="font-semibold text-pine-800">Clientes</span></div>
+          <div class="text-sm font-bold text-pine-900 sm:hidden">PawSQL</div>
+        </div>
+        <div class="flex items-center gap-3">
+          <div class="hidden text-right sm:block">
+            <p class="text-xs font-bold text-pine-900">Administrador</p>
+            <p class="text-[10px] text-slate-400">Panel de gestión</p>
+          </div>
+          <div class="grid h-9 w-9 place-items-center rounded-full bg-sage-100 text-[11px] font-extrabold text-pine-800 ring-2 ring-white">AD</div>
+        </div>
+      </header>
+
+      <div class="mx-auto max-w-[1400px] px-5 py-8 sm:px-8 lg:px-10 lg:py-10">
+        <!-- Page heading -->
+        <section class="mb-7 flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
+          <div>
+            <div class="mb-2 flex items-center gap-2">
+              <span class="h-[2px] w-6 rounded-full bg-coral-500"></span>
+              <span class="text-[10px] font-bold uppercase tracking-[.2em] text-pine-600">Control de información</span>
+            </div>
+            <h1 id="pageTitle" class="font-[Manrope] text-[30px] font-extrabold tracking-tight text-pine-950 sm:text-[34px]">Clientes</h1>
+            <p id="pageSubtitle" class="mt-1.5 max-w-xl text-[13px] leading-6 text-slate-500">Administra los datos de las personas responsables de cada mascota.</p>
+          </div>
+          <button id="newRecordBtn" onclick="openModal()" class="inline-flex h-11 items-center justify-center gap-2 self-start rounded-xl bg-pine-800 px-5 text-[12px] font-bold text-white shadow-[0_6px_16px_rgba(32,83,77,.18)] transition hover:-translate-y-0.5 hover:bg-pine-700 hover:shadow-soft sm:self-auto">
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>
+            <span id="newRecordLabel">Nuevo cliente</span>
+          </button>
+        </section>
+
+        <!-- Main table panel -->
+        <section class="overflow-hidden rounded-[20px] border border-sage-200/80 bg-white shadow-panel">
+          <div class="flex flex-col gap-4 border-b border-sage-100 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-7">
+            <div class="flex items-center gap-3">
+              <div class="grid h-10 w-10 place-items-center rounded-xl bg-sage-100 text-pine-700">
+                <svg id="sectionIcon" class="h-[19px] w-[19px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 20v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 4 18.5V20M10 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" stroke-linecap="round"/></svg>
+              </div>
+              <div>
+                <h2 id="tableTitle" class="text-[14px] font-extrabold text-pine-950">Directorio de clientes</h2>
+                <p id="tableMeta" class="mt-0.5 text-[11px] text-slate-400">3 registros en total</p>
+              </div>
+            </div>
+            <div class="relative w-full sm:max-w-[270px]">
+              <svg class="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 4.5 4.5" stroke-linecap="round"/></svg>
+              <input id="searchInput" oninput="renderTable()" type="search" placeholder="Buscar registro..." class="h-10 w-full rounded-xl border border-sage-200 bg-sage-50/60 pl-10 pr-4 text-xs text-pine-900 placeholder:text-slate-400 transition focus:bg-white" />
+            </div>
+          </div>
+
+          <div class="soft-scroll overflow-x-auto">
+            <table class="w-full min-w-[720px] border-collapse text-left">
+              <thead id="tableHead" class="bg-[#f8faf8]"></thead>
+              <tbody id="tableBody" class="divide-y divide-sage-100"></tbody>
+            </table>
+          </div>
+          <div class="flex flex-col items-center justify-between gap-2 border-t border-sage-100 px-5 py-4 text-[10px] text-slate-400 sm:flex-row sm:px-7">
+            <span id="tableFoot">Mostrando 3 registros</span>
+            <span class="inline-flex items-center gap-1.5"><span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span> Datos de demostración</span>
+          </div>
+        </section>
+
+        <!-- Quiet visual note -->
+        <div class="mt-6 flex items-center justify-between gap-4 rounded-2xl border border-sage-200/70 bg-white/55 px-5 py-4">
+          <div class="flex items-center gap-3">
+            <div class="pet-orbit hidden h-10 w-10 place-items-center rounded-full bg-coral-100 text-coral-500 sm:grid">
+              <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 20.5c-3.8 0-7-2.2-7-5.2 0-2.2 1.8-3.8 4-3.8 1.3 0 2.2.5 3 1.3.8-.8 1.7-1.3 3-1.3 2.2 0 4 1.6 4 3.8 0 3-3.2 5.2-7 5.2Z"/><ellipse cx="5.2" cy="7.3" rx="2" ry="2.7"/><ellipse cx="10.1" cy="4.8" rx="2" ry="2.7"/><ellipse cx="16" cy="4.8" rx="2" ry="2.7"/><ellipse cx="20.2" cy="7.8" rx="2" ry="2.7"/></svg>
+            </div>
+            <div>
+              <p class="text-[11px] font-bold text-pine-900">Cada registro ayuda a brindar una mejor atención.</p>
+              <p class="mt-0.5 text-[10px] text-slate-400">PawSQL · Sistema de gestión para clínica veterinaria</p>
+            </div>
+          </div>
+          <span class="hidden rounded-full bg-sage-100 px-3 py-1.5 text-[9px] font-bold uppercase tracking-wider text-pine-700 sm:inline-flex">CRUD</span>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Create / edit modal -->
+  <div id="recordModal" class="modal-backdrop fixed inset-0 z-50 hidden items-center justify-center bg-pine-950/45 p-4 backdrop-blur-[3px]" onclick="backdropClose(event)">
+    <div class="modal-card max-h-[92vh] w-full max-w-[590px] overflow-hidden rounded-[22px] bg-white shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="flex items-start justify-between border-b border-sage-100 px-6 py-5 sm:px-7">
+        <div>
+          <div class="mb-1 text-[9px] font-bold uppercase tracking-[.2em] text-pine-600">Ficha de información</div>
+          <h3 id="modalTitle" class="font-[Manrope] text-xl font-extrabold text-pine-950">Nuevo cliente</h3>
+          <p id="modalDescription" class="mt-1 text-[11px] text-slate-400">Completa los datos para agregar un registro.</p>
+        </div>
+        <button onclick="closeModal()" class="grid h-8 w-8 place-items-center rounded-full text-slate-400 transition hover:bg-sage-100 hover:text-pine-900" aria-label="Cerrar">
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 6 12 12M18 6 6 18" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <form id="recordForm" onsubmit="saveRecord(event)" class="soft-scroll max-h-[calc(92vh-140px)] overflow-y-auto px-6 py-6 sm:px-7">
+        <div id="formFields" class="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2"></div>
+        <div id="treatmentAssignment" class="mt-5 hidden">
+          <div class="mb-3 flex items-center justify-between">
+            <label class="text-[11px] font-bold text-pine-900">Tratamientos de la consulta</label>
+            <span class="text-[10px] text-slate-400">Relación consulta–tratamiento</span>
+          </div>
+          <div id="treatmentOptions" class="space-y-2"></div>
+        </div>
+        <div class="mt-7 flex flex-col-reverse gap-2 border-t border-sage-100 pt-5 sm:flex-row sm:justify-end">
+          <button type="button" onclick="closeModal()" class="h-10 rounded-xl border border-sage-200 px-5 text-xs font-bold text-slate-500 transition hover:bg-sage-50">Cancelar</button>
+          <button type="submit" class="h-10 rounded-xl bg-pine-800 px-6 text-xs font-bold text-white shadow-sm transition hover:bg-pine-700">Guardar registro</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Delete confirmation -->
+  <div id="deleteModal" class="modal-backdrop fixed inset-0 z-[60] hidden items-center justify-center bg-pine-950/45 p-4 backdrop-blur-[3px]">
+    <div class="modal-card w-full max-w-[390px] rounded-[22px] bg-white p-6 text-center shadow-2xl">
+      <div class="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-2xl bg-coral-100 text-coral-500">
+        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M10 11v6m4-6v6M5.5 7l1 13h11l1-13M9 7V4h6v3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <h3 class="font-[Manrope] text-lg font-extrabold text-pine-950">¿Eliminar registro?</h3>
+      <p id="deleteMessage" class="mx-auto mt-2 max-w-[280px] text-xs leading-5 text-slate-500">Esta acción no se puede deshacer.</p>
+      <div class="mt-6 flex justify-center gap-2">
+        <button onclick="closeDeleteModal()" class="h-10 rounded-xl border border-sage-200 px-5 text-xs font-bold text-slate-500 hover:bg-sage-50">Cancelar</button>
+        <button onclick="confirmDelete()" class="h-10 rounded-xl bg-[#c66f55] px-5 text-xs font-bold text-white transition hover:bg-[#b85e45]">Sí, eliminar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="pointer-events-none fixed bottom-5 right-5 z-[70] translate-y-3 rounded-xl bg-pine-950 px-4 py-3 text-xs font-semibold text-white opacity-0 shadow-soft transition-all duration-300"></div>
+
+  <script>
+    // Datos ficticios para demostrar el comportamiento de la interfaz.
+    // En la versión final, estas operaciones se conectarían con el backend y PostgreSQL.
+    const state = {
+      section: 'clientes',
+      editingId: null,
+      deletingId: null,
+      toastTimer: null,
+      data: {
+        clientes: [
+          { id_cliente: 1, nombre: 'Ana Laura Pérez', telefono: '33-1234-5678', email: 'ana.perez@email.com', fecha_registro: '2026-11-06' },
+          { id_cliente: 2, nombre: 'Carlos Gómez', telefono: '33-8765-4321', email: 'carlos.g@email.com', fecha_registro: '2026-11-06' },
+          { id_cliente: 3, nombre: 'Mariana Torres', telefono: '33-4567-8910', email: 'mariana.t@email.com', fecha_registro: '2026-11-04' },
+          { id_cliente: 4, nombre: 'Jorge Ramírez', telefono: '33-1122-3344', email: 'jorge.r@email.com', fecha_registro: '2026-11-02' }
+        ],
+        mascotas: [
+          { id_mascota: 1, id_cliente: 1, nombre: 'Luna', especie: 'Perro', raza: 'Golden retriever', fecha_nacimiento: '2022-03-14' },
+          { id_mascota: 2, id_cliente: 2, nombre: 'Milo', especie: 'Gato', raza: 'Europeo', fecha_nacimiento: '2023-08-02' },
+          { id_mascota: 3, id_cliente: 3, nombre: 'Coco', especie: 'Perro', raza: 'Poodle', fecha_nacimiento: '2021-11-20' },
+          { id_mascota: 4, id_cliente: 1, nombre: 'Nala', especie: 'Gato', raza: 'Siamés', fecha_nacimiento: '2024-01-11' }
+        ],
+        veterinarios: [
+          { id_veterinario: 1, nombre: 'Dra. Sofía Herrera', especialidad: 'Medicina general', cedula_profesional: 'VET-28451' },
+          { id_veterinario: 2, nombre: 'Dr. Diego Navarro', especialidad: 'Dermatología', cedula_profesional: 'VET-19382' },
+          { id_veterinario: 3, nombre: 'Dra. Paula Méndez', especialidad: 'Cirugía', cedula_profesional: 'VET-37410' }
+        ],
+        consultas: [
+          { id_consulta: 1, id_mascota: 1, id_veterinario: 1, fecha_consulta: '2026-11-06', motivo: 'Revisión general', peso_kg: '18.40' },
+          { id_consulta: 2, id_mascota: 2, id_veterinario: 2, fecha_consulta: '2026-11-05', motivo: 'Irritación en la piel', peso_kg: '4.20' },
+          { id_consulta: 3, id_mascota: 3, id_veterinario: 3, fecha_consulta: '2026-11-03', motivo: 'Valoración preoperatoria', peso_kg: '8.10' }
+        ],
+        tratamientos: [
+          { id_tratamiento: 1, nombre: 'Desparasitación', descripcion: 'Tratamiento antiparasitario interno.', costo: '350.00' },
+          { id_tratamiento: 2, nombre: 'Limpieza dental', descripcion: 'Profilaxis y limpieza dental.', costo: '680.00' },
+          { id_tratamiento: 3, nombre: 'Curación de piel', descripcion: 'Limpieza y cuidado de lesiones cutáneas.', costo: '420.00' }
+        ],
+        consulta_tratamiento: [
+          { id_consulta: 1, id_tratamiento: 1, dosis_o_indicacion: 'Dosis única según peso.' },
+          { id_consulta: 2, id_tratamiento: 3, dosis_o_indicacion: 'Aplicar según indicación médica.' }
+        ]
+      }
+    };
+
+    const config = {
+      clientes: {
+        singular: 'cliente', plural: 'Clientes', title: 'Directorio de clientes', subtitle: 'Administra los datos de las personas responsables de cada mascota.',
+        id: 'id_cliente', columns: [
+          { key: 'id_cliente', label: 'ID', type: 'id' },
+          { key: 'nombre', label: 'Nombre', type: 'person' },
+          { key: 'telefono', label: 'Teléfono' },
+          { key: 'email', label: 'Correo electrónico', type: 'email' },
+          { key: 'fecha_registro', label: 'Fecha de registro', type: 'date' }
+        ],
+        fields: [
+          { key: 'nombre', label: 'Nombre completo', required: true, placeholder: 'Ej. Ana Laura Pérez' },
+          { key: 'telefono', label: 'Teléfono', placeholder: '33-1234-5678', maxlength: 15 },
+          { key: 'email', label: 'Correo electrónico', type: 'email', placeholder: 'correo@ejemplo.com', full: true }
+        ]
+      },
+      mascotas: {
+        singular: 'mascota', plural: 'Mascotas', title: 'Registro de mascotas', subtitle: 'Consulta las mascotas registradas y el cliente al que pertenecen.',
+        id: 'id_mascota', columns: [
+          { key: 'id_mascota', label: 'ID', type: 'id' },
+          { key: 'nombre', label: 'Mascota', type: 'pet' },
+          { key: 'id_cliente', label: 'Propietario', type: 'owner' },
+          { key: 'especie', label: 'Especie', type: 'species' },
+          { key: 'raza', label: 'Raza' },
+          { key: 'fecha_nacimiento', label: 'Nacimiento', type: 'date' }
+        ],
+        fields: [
+          { key: 'id_cliente', label: 'Propietario', type: 'select', source: 'clientes', value: 'id_cliente', text: 'nombre', required: true },
+          { key: 'nombre', label: 'Nombre de la mascota', required: true, placeholder: 'Ej. Luna' },
+          { key: 'especie', label: 'Especie', type: 'select-static', options: ['Perro', 'Gato', 'Ave', 'Conejo', 'Otro'], required: true },
+          { key: 'raza', label: 'Raza', placeholder: 'Ej. Golden retriever' },
+          { key: 'fecha_nacimiento', label: 'Fecha de nacimiento', type: 'date' }
+        ]
+      },
+      veterinarios: {
+        singular: 'veterinario', plural: 'Veterinarios', title: 'Equipo veterinario', subtitle: 'Mantén organizada la información del personal médico.',
+        id: 'id_veterinario', columns: [
+          { key: 'id_veterinario', label: 'ID', type: 'id' },
+          { key: 'nombre', label: 'Nombre', type: 'person' },
+          { key: 'especialidad', label: 'Especialidad', type: 'specialty' },
+          { key: 'cedula_profesional', label: 'Cédula profesional' }
+        ],
+        fields: [
+          { key: 'nombre', label: 'Nombre completo', required: true, placeholder: 'Ej. Dra. Sofía Herrera', full: true },
+          { key: 'especialidad', label: 'Especialidad', required: true, placeholder: 'Ej. Medicina general' },
+          { key: 'cedula_profesional', label: 'Cédula profesional', required: true, placeholder: 'Ej. VET-28451' }
+        ]
+      },
+      consultas: {
+        singular: 'consulta', plural: 'Consultas', title: 'Historial de consultas', subtitle: 'Registra las consultas, el personal que las atiende y sus tratamientos.',
+        id: 'id_consulta', columns: [
+          { key: 'id_consulta', label: 'ID', type: 'id' },
+          { key: 'fecha_consulta', label: 'Fecha', type: 'date' },
+          { key: 'id_mascota', label: 'Mascota', type: 'pet-owner' },
+          { key: 'id_veterinario', label: 'Veterinario', type: 'vet' },
+          { key: 'motivo', label: 'Motivo' },
+          { key: 'peso_kg', label: 'Peso', type: 'weight' },
+          { key: 'id_consulta', label: 'Tratamientos', type: 'assigned' }
+        ],
+        fields: [
+          { key: 'id_mascota', label: 'Mascota', type: 'select', source: 'mascotas', value: 'id_mascota', text: 'nombre', required: true },
+          { key: 'id_veterinario', label: 'Veterinario', type: 'select', source: 'veterinarios', value: 'id_veterinario', text: 'nombre', required: true },
+          { key: 'fecha_consulta', label: 'Fecha de consulta', type: 'date', required: true },
+          { key: 'peso_kg', label: 'Peso (kg)', type: 'number', step: '0.01', min: '0.01', placeholder: 'Ej. 18.40' },
+          { key: 'motivo', label: 'Motivo de consulta', type: 'textarea', required: true, placeholder: 'Describe brevemente el motivo...', full: true }
+        ], treatmentRelation: true
+      },
+      tratamientos: {
+        singular: 'tratamiento', plural: 'Tratamientos', title: 'Catálogo de tratamientos', subtitle: 'Administra los procedimientos y servicios disponibles en la veterinaria.',
+        id: 'id_tratamiento', columns: [
+          { key: 'id_tratamiento', label: 'ID', type: 'id' },
+          { key: 'nombre', label: 'Tratamiento', type: 'treatment' },
+          { key: 'descripcion', label: 'Descripción' },
+          { key: 'costo', label: 'Costo', type: 'money' }
+        ],
+        fields: [
+          { key: 'nombre', label: 'Nombre del tratamiento', required: true, placeholder: 'Ej. Desparasitación', full: true },
+          { key: 'descripcion', label: 'Descripción', type: 'textarea', placeholder: 'Describe el procedimiento...', full: true },
+          { key: 'costo', label: 'Costo (MXN)', type: 'number', min: '0', step: '0.01', placeholder: 'Ej. 350.00' }
+        ]
+      }
+    };
+
+    const svgEdit = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m14 5 5 5M4 20l4.2-.8L19 8.4a2.1 2.1 0 0 0-3-3L5.2 16.2 4 20Z" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    const svgDelete = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M10 11v6m4-6v6M5.5 7l1 13h11l1-13M9 7V4h6v3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+    function toggleSidebar(open) {
+      document.getElementById('sidebar').classList.toggle('open', open);
+      document.getElementById('mobileShade').classList.toggle('show', open);
+    }
+
+    function switchSection(section) {
+      state.section = section;
+      const c = config[section];
+      document.querySelectorAll('[data-section]').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.section === section);
+        btn.classList.toggle('text-white/65', btn.dataset.section !== section);
+      });
+      document.getElementById('breadcrumb').textContent = c.plural;
+      document.getElementById('pageTitle').textContent = c.plural;
+      document.getElementById('pageSubtitle').textContent = c.subtitle;
+      document.getElementById('tableTitle').textContent = c.title;
+      document.getElementById('newRecordLabel').textContent = 'Nuevo ' + c.singular;
+      document.getElementById('searchInput').value = '';
+      toggleSidebar(false);
+      renderTable();
+    }
+
+    function getDisplayValue(section, record, column) {
+      const value = record[column.key];
+      if (column.type === 'owner') return state.data.clientes.find(x => x.id_cliente === value)?.nombre || '—';
+      if (column.type === 'pet-owner') {
+        const pet = state.data.mascotas.find(x => x.id_mascota === value);
+        const owner = pet ? state.data.clientes.find(x => x.id_cliente === pet.id_cliente) : null;
+        return { main: pet?.nombre || 'Mascota eliminada', sub: owner?.nombre || 'Sin propietario' };
+      }
+      if (column.type === 'vet') return state.data.veterinarios.find(x => x.id_veterinario === value)?.nombre || '—';
+      if (column.type === 'date') return formatDate(value);
+      if (column.type === 'weight') return value ? `${Number(value).toFixed(2)} kg` : '—';
+      if (column.type === 'money') return value === '' || value == null ? '—' : money(value);
+      if (column.type === 'species') return value || '—';
+      if (column.type === 'assigned') {
+        const links = state.data.consulta_tratamiento.filter(x => x.id_consulta === record.id_consulta);
+        return links.map(x => state.data.tratamientos.find(t => t.id_tratamiento === x.id_tratamiento)?.nombre).filter(Boolean);
+      }
+      return value || '—';
+    }
+
+    function formatDate(value) {
+      if (!value) return '—';
+      const [y,m,d] = value.split('-').map(Number);
+      return new Date(y, m - 1, d).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
+    }
+    function money(value) { return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(Number(value)); }
+    function initials(name='') { return name.split(' ').filter(Boolean).slice(0,2).map(x => x[0]).join('').toUpperCase(); }
+
+    function renderCell(section, record, col) {
+      const val = getDisplayValue(section, record, col);
+      if (col.type === 'id') return `<span class="font-mono text-[10px] text-slate-400">#${String(val).padStart(3, '0')}</span>`;
+      if (col.type === 'person') return `<div class="flex items-center gap-3"><div class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-sage-100 text-[10px] font-extrabold text-pine-700">${initials(val)}</div><span class="font-bold text-pine-950">${escapeHtml(val)}</span></div>`;
+      if (col.type === 'pet') {
+        const colors = { Perro: 'bg-coral-100 text-[#b87555]', Gato: 'bg-sage-100 text-pine-700', Ave: 'bg-amber-50 text-amber-700' };
+        const species = record.especie;
+        return `<div class="flex items-center gap-3"><div class="grid h-9 w-9 place-items-center rounded-xl ${colors[species] || 'bg-sage-100 text-pine-700'}"><svg class="h-[17px] w-[17px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 20.5c-3.8 0-7-2.2-7-5.2 0-2.2 1.8-3.8 4-3.8 1.3 0 2.2.5 3 1.3.8-.8 1.7-1.3 3-1.3 2.2 0 4 1.6 4 3.8 0 3-3.2 5.2-7 5.2Z"/><ellipse cx="5.2" cy="7.3" rx="2" ry="2.7"/><ellipse cx="10.1" cy="4.8" rx="2" ry="2.7"/><ellipse cx="16" cy="4.8" rx="2" ry="2.7"/><ellipse cx="20.2" cy="7.8" rx="2" ry="2.7"/></svg></div><div><div class="font-bold text-pine-950">${escapeHtml(val)}</div><div class="text-[10px] text-slate-400">${escapeHtml(record.raza || record.especie)}</div></div></div>`;
+      }
+      if (col.type === 'email') return `<span class="text-pine-700">${escapeHtml(val)}</span>`;
+      if (col.type === 'owner') return `<span class="font-medium text-pine-800">${escapeHtml(val)}</span>`;
+      if (col.type === 'pet-owner') return `<div><div class="font-bold text-pine-950">${escapeHtml(val.main)}</div><div class="mt-0.5 text-[10px] text-slate-400">${escapeHtml(val.sub)}</div></div>`;
+      if (col.type === 'species') return `<span class="rounded-full bg-sage-100 px-2.5 py-1 text-[10px] font-bold text-pine-700">${escapeHtml(val)}</span>`;
+      if (col.type === 'specialty') return `<span class="rounded-full bg-sage-100 px-2.5 py-1 text-[10px] font-semibold text-pine-700">${escapeHtml(val)}</span>`;
+      if (col.type === 'treatment') return `<div class="flex items-center gap-2"><span class="grid h-8 w-8 place-items-center rounded-lg bg-coral-100 text-coral-500"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m4.7 16.5 7.8-7.8a4 4 0 0 1 5.7 5.7l-7.8 7.8a4 4 0 0 1-5.7-5.7Z"/><path d="m8 13.2 5.7 5.7"/></svg></span><span class="font-bold text-pine-950">${escapeHtml(val)}</span></div>`;
+      if (col.type === 'assigned') {
+        return val.length ? `<div class="flex max-w-[230px] flex-wrap gap-1">${val.map(x => `<span class="rounded-md bg-sage-100 px-2 py-1 text-[9px] font-semibold text-pine-700">${escapeHtml(x)}</span>`).join('')}</div>` : '<span class="text-[10px] text-slate-300">Sin asignar</span>';
+      }
+      if (col.type === 'money') return `<span class="font-bold text-pine-900">${val}</span>`;
+      if (col.type === 'weight') return `<span class="font-semibold text-pine-800">${val}</span>`;
+      if (col.type === 'date') return `<span class="text-slate-500">${val}</span>`;
+      return `<span class="text-slate-600">${escapeHtml(val)}</span>`;
+    }
+
+    function searchableText(record, section) {
+      const parts = Object.values(record).map(x => String(x ?? ''));
+      if (section === 'mascotas') parts.push(state.data.clientes.find(x => x.id_cliente === record.id_cliente)?.nombre || '');
+      if (section === 'consultas') {
+        const pet = state.data.mascotas.find(x => x.id_mascota === record.id_mascota);
+        const vet = state.data.veterinarios.find(x => x.id_veterinario === record.id_veterinario);
+        parts.push(pet?.nombre || '', vet?.nombre || '');
+      }
+      return parts.join(' ').toLowerCase();
+    }
+
+    function renderTable() {
+      const section = state.section, c = config[section];
+      const query = document.getElementById('searchInput').value.trim().toLowerCase();
+      const all = state.data[section];
+      const rows = all.filter(r => !query || searchableText(r, section).includes(query));
+      document.getElementById('tableMeta').textContent = `${all.length} ${all.length === 1 ? 'registro' : 'registros'} en total`;
+      document.getElementById('tableFoot').textContent = rows.length ? `Mostrando ${rows.length} de ${all.length} registros` : 'No hay registros para mostrar';
+      document.getElementById('tableHead').innerHTML = `<tr>${c.columns.map(x => `<th class="whitespace-nowrap px-5 py-3.5 text-[9px] font-bold uppercase tracking-[.12em] text-slate-400 sm:px-6">${x.label}</th>`).join('')}<th class="px-5 py-3.5 text-right text-[9px] font-bold uppercase tracking-[.12em] text-slate-400 sm:px-6">Acciones</th></tr>`;
+      if (!rows.length) {
+        document.getElementById('tableBody').innerHTML = `<tr><td colspan="${c.columns.length + 1}" class="px-6 py-16 text-center"><div class="mx-auto mb-3 grid h-11 w-11 place-items-center rounded-2xl bg-sage-100 text-pine-700"><svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 4.5 4.5" stroke-linecap="round"/></svg></div><p class="text-xs font-bold text-pine-900">No encontramos registros</p><p class="mt-1 text-[10px] text-slate-400">Prueba con otro término de búsqueda.</p></td></tr>`;
+        return;
+      }
+      document.getElementById('tableBody').innerHTML = rows.map(record => `<tr class="table-row"><td class="hidden">${record[c.id]}</td>${c.columns.map(col => `<td class="whitespace-nowrap px-5 py-[15px] text-[11px] sm:px-6">${renderCell(section, record, col)}</td>`).join('')}<td class="whitespace-nowrap px-5 py-[15px] sm:px-6"><div class="flex justify-end gap-1.5"><button class="icon-btn grid h-8 w-8 place-items-center rounded-lg text-slate-400" title="Editar" aria-label="Editar" onclick="openModal(${record[c.id]})"><span class="h-4 w-4">${svgEdit}</span></button><button class="icon-btn grid h-8 w-8 place-items-center rounded-lg text-[#c77e68]" title="Eliminar" aria-label="Eliminar" onclick="askDelete(${record[c.id]})"><span class="h-4 w-4">${svgDelete}</span></button></div></td></tr>`).join('');
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? '').replace(/[&<>"']/g, ch => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[ch]));
+    }
+
+    function openModal(id = null) {
+      const section = state.section, c = config[section];
+      state.editingId = id;
+      const record = id == null ? {} : state.data[section].find(x => x[c.id] === id);
+      document.getElementById('modalTitle').textContent = (id == null ? 'Nuevo ' : 'Editar ') + c.singular;
+      document.getElementById('modalDescription').textContent = id == null ? 'Completa los datos para agregar un registro.' : 'Modifica la información de este registro.';
+      document.getElementById('formFields').innerHTML = c.fields.map(field => buildField(field, record?.[field.key])).join('');
+      const relation = document.getElementById('treatmentAssignment');
+      if (c.treatmentRelation) {
+        relation.classList.remove('hidden');
+        renderTreatmentOptions(id);
+      } else {
+        relation.classList.add('hidden');
+        document.getElementById('treatmentOptions').innerHTML = '';
+      }
+      const modal = document.getElementById('recordModal');
+      modal.classList.remove('hidden'); modal.classList.add('flex');
+      document.body.classList.add('overflow-hidden');
+    }
+
+    function buildField(field, value) {
+      const base = 'mt-1.5 h-10 w-full rounded-xl border border-sage-200 bg-sage-50/50 px-3.5 text-xs text-pine-900 placeholder:text-slate-300 transition';
+      const label = `<label for="field_${field.key}" class="text-[10px] font-bold text-pine-900">${field.label}${field.required ? ' <span class="text-coral-500">*</span>' : ''}</label>`;
+      let control = '';
+      if (field.type === 'select') {
+        const options = state.data[field.source].map(x => `<option value="${x[field.value]}" ${String(value ?? '') === String(x[field.value]) ? 'selected' : ''}>${escapeHtml(x[field.text])}</option>`).join('');
+        control = `<select id="field_${field.key}" name="${field.key}" class="${base}" ${field.required ? 'required' : ''}><option value="">Seleccionar...</option>${options}</select>`;
+      } else if (field.type === 'select-static') {
+        control = `<select id="field_${field.key}" name="${field.key}" class="${base}" ${field.required ? 'required' : ''}><option value="">Seleccionar...</option>${field.options.map(x => `<option value="${x}" ${value === x ? 'selected' : ''}>${x}</option>`).join('')}</select>`;
+      } else if (field.type === 'textarea') {
+        control = `<textarea id="field_${field.key}" name="${field.key}" rows="3" placeholder="${field.placeholder || ''}" class="mt-1.5 w-full rounded-xl border border-sage-200 bg-sage-50/50 px-3.5 py-3 text-xs text-pine-900 placeholder:text-slate-300 transition" ${field.required ? 'required' : ''}>${escapeHtml(value || '')}</textarea>`;
+      } else {
+        const type = field.type || 'text';
+        control = `<input id="field_${field.key}" name="${field.key}" type="${type}" value="${escapeHtml(value ?? '')}" placeholder="${field.placeholder || ''}" class="${base}" ${field.required ? 'required' : ''} ${field.min != null ? `min="${field.min}"` : ''} ${field.maxlength ? `maxlength="${field.maxlength}"` : ''} ${field.step ? `step="${field.step}"` : ''} />`;
+      }
+      return `<div class="${field.full ? 'sm:col-span-2' : ''}">${label}${control}</div>`;
+    }
+
+    function renderTreatmentOptions(consultId = null) {
+      const links = consultId == null ? [] : state.data.consulta_tratamiento.filter(x => x.id_consulta === consultId);
+      document.getElementById('treatmentOptions').innerHTML = state.data.tratamientos.length ? state.data.tratamientos.map(t => {
+        const existing = links.find(x => x.id_tratamiento === t.id_tratamiento);
+        return `<div class="rounded-xl border border-sage-200 bg-sage-50/50 p-3"><label class="flex cursor-pointer items-center gap-3"><input type="checkbox" name="treatment_${t.id_tratamiento}" ${existing ? 'checked' : ''} onchange="toggleDose(${t.id_tratamiento}, this.checked)" class="h-4 w-4 rounded border-sage-300 accent-[#2f6b62]"><span class="flex-1"><span class="block text-[11px] font-bold text-pine-900">${escapeHtml(t.nombre)}</span><span class="text-[10px] text-slate-400">${money(t.costo)}</span></span><span class="text-[9px] text-pine-600">Asignar</span></label><input id="dose_${t.id_tratamiento}" value="${escapeHtml(existing?.dosis_o_indicacion || '')}" placeholder="Dosis o indicación (opcional)" class="${existing ? '' : 'hidden'} mt-2 h-9 w-full rounded-lg border border-sage-200 bg-white px-3 text-[10px] text-pine-900 placeholder:text-slate-300"></div>`;
+      }).join('') : '<p class="rounded-xl bg-sage-50 p-4 text-[11px] text-slate-400">Primero registra tratamientos en el catálogo.</p>';
+    }
+    function toggleDose(id, checked) { document.getElementById(`dose_${id}`)?.classList.toggle('hidden', !checked); }
+
+    function saveRecord(event) {
+      event.preventDefault();
+      const section = state.section, c = config[section];
+      const formData = new FormData(event.target);
+      const record = {};
+      c.fields.forEach(field => {
+        let value = formData.get(field.key);
+        if (field.type === 'select') value = value ? Number(value) : null;
+        if (field.type === 'number') value = value === '' ? null : Number(value).toFixed(2);
+        record[field.key] = value;
+      });
+      if (section === 'clientes') {
+        const duplicatePhone = record.telefono && state.data.clientes.some(x => x.telefono === record.telefono && x.id_cliente !== state.editingId);
+        if (duplicatePhone) return showToast('Ese teléfono ya está registrado.');
+      }
+      if (section === 'veterinarios') {
+        const duplicateLicense = state.data.veterinarios.some(x => x.cedula_profesional === record.cedula_profesional && x.id_veterinario !== state.editingId);
+        if (duplicateLicense) return showToast('La cédula profesional ya existe.');
+      }
+      if (section === 'consultas' && record.peso_kg != null && Number(record.peso_kg) <= 0) return showToast('El peso debe ser mayor que cero.');
+      const isNewRecord = state.editingId == null;
+      let savedId;
+      if (isNewRecord) {
+        savedId = Math.max(0, ...state.data[section].map(x => Number(x[c.id]))) + 1;
+        if (section === 'clientes') record.fecha_registro = new Date().toISOString().slice(0,10);
+        state.data[section].push({ [c.id]: savedId, ...record });
+      } else {
+        savedId = state.editingId;
+        const index = state.data[section].findIndex(x => x[c.id] === savedId);
+        state.data[section][index] = { ...state.data[section][index], ...record };
+      }
+      if (section === 'consultas') {
+        state.data.consulta_tratamiento = state.data.consulta_tratamiento.filter(x => x.id_consulta !== savedId);
+        state.data.tratamientos.forEach(t => {
+          if (formData.has(`treatment_${t.id_tratamiento}`)) {
+            state.data.consulta_tratamiento.push({ id_consulta: savedId, id_tratamiento: t.id_tratamiento, dosis_o_indicacion: document.getElementById(`dose_${t.id_tratamiento}`)?.value || '' });
+          }
+        });
+      }
+      closeModal(); renderTable(); showToast(isNewRecord ? 'Registro agregado correctamente.' : 'Cambios guardados correctamente.');
+    }
+
+    function closeModal() {
+      const modal = document.getElementById('recordModal');
+      modal.classList.add('hidden'); modal.classList.remove('flex');
+      document.body.classList.remove('overflow-hidden');
+      state.editingId = null;
+    }
+    function backdropClose(event) { if (event.target.id === 'recordModal') closeModal(); }
+
+    function askDelete(id) {
+      state.deletingId = id;
+      const c = config[state.section];
+      const record = state.data[state.section].find(x => x[c.id] === id);
+      const label = record?.nombre || record?.motivo || `registro #${id}`;
+      document.getElementById('deleteMessage').textContent = `Se eliminará “${label}”. Esta acción no se puede deshacer.`;
+      const modal = document.getElementById('deleteModal'); modal.classList.remove('hidden'); modal.classList.add('flex');
+    }
+    function closeDeleteModal() { const modal = document.getElementById('deleteModal'); modal.classList.add('hidden'); modal.classList.remove('flex'); state.deletingId = null; }
+
+    function confirmDelete() {
+      const section = state.section, c = config[section], id = state.deletingId;
+      if (section === 'veterinarios' && state.data.consultas.some(x => x.id_veterinario === id)) {
+        closeDeleteModal();
+        showToast('No se puede eliminar: el veterinario tiene consultas registradas.');
+        return;
+      }
+      state.data[section] = state.data[section].filter(x => x[c.id] !== id);
+      // Simula las reglas ON DELETE CASCADE definidas en el modelo relacional.
+      if (section === 'clientes') {
+        const petIds = state.data.mascotas.filter(x => x.id_cliente === id).map(x => x.id_mascota);
+        state.data.mascotas = state.data.mascotas.filter(x => x.id_cliente !== id);
+        const consultIds = state.data.consultas.filter(x => petIds.includes(x.id_mascota)).map(x => x.id_consulta);
+        state.data.consultas = state.data.consultas.filter(x => !consultIds.includes(x.id_consulta));
+        state.data.consulta_tratamiento = state.data.consulta_tratamiento.filter(x => !consultIds.includes(x.id_consulta));
+      }
+      if (section === 'mascotas') {
+        const consultIds = state.data.consultas.filter(x => x.id_mascota === id).map(x => x.id_consulta);
+        state.data.consultas = state.data.consultas.filter(x => x.id_mascota !== id);
+        state.data.consulta_tratamiento = state.data.consulta_tratamiento.filter(x => !consultIds.includes(x.id_consulta));
+      }
+      if (section === 'consultas') state.data.consulta_tratamiento = state.data.consulta_tratamiento.filter(x => x.id_consulta !== id);
+      if (section === 'tratamientos') state.data.consulta_tratamiento = state.data.consulta_tratamiento.filter(x => x.id_tratamiento !== id);
+      closeDeleteModal(); renderTable(); showToast('Registro eliminado.');
+    }
+
+    function showToast(message) {
+      const el = document.getElementById('toast');
+      el.textContent = message; el.classList.remove('opacity-0', 'translate-y-3'); el.classList.add('opacity-100', 'translate-y-0');
+      clearTimeout(state.toastTimer); state.toastTimer = setTimeout(() => { el.classList.add('opacity-0', 'translate-y-3'); el.classList.remove('opacity-100', 'translate-y-0'); }, 2600);
+    }
+
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape') { closeModal(); closeDeleteModal(); toggleSidebar(false); }
+    });
+    renderTable();
+  </script>
+</body>
+</html>

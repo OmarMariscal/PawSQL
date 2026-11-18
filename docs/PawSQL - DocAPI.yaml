@@ -1,0 +1,565 @@
+openapi: 3.0.2
+info:
+  title: API Veterinaria PawSQL
+  version: 1.0.0
+  description: >
+    API RESTful para el sistema de gestión de clínica veterinaria PawSQL.
+    Diseñada con arquitectura Cliente/Servidor. Las consultas de lectura utilizan JOINs
+    y las operaciones respetan las restricciones (constraints) de PostgreSQL.
+tags:
+  - name: Clientes
+    description: Gestión de dueños de mascotas
+  - name: Mascotas
+    description: Gestión de pacientes
+  - name: Veterinarios
+    description: Directorio del personal médico
+  - name: Consultas
+    description: Historial médico y citas (Relación M:N)
+  - name: Tratamientos
+    description: Catálogo de procedimientos y servicios médicos
+
+paths:
+  # ==========================================
+  # CLIENTES
+  # ==========================================
+  /api/clientes:
+    get:
+      tags: [Clientes]
+      summary: Obtener listado de clientes
+      responses:
+        '200':
+          description: Lista de clientes obtenida correctamente
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Cliente'
+    post:
+      tags: [Clientes]
+      summary: Registrar un nuevo cliente
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClienteInput'
+      responses:
+        '201':
+          description: Cliente creado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cliente'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/clientes/{id_cliente}:
+    parameters:
+      - in: path
+        name: id_cliente
+        required: true
+        schema:
+          type: integer
+    put:
+      tags: [Clientes]
+      summary: Actualizar un cliente
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClienteInput'
+      responses:
+        '200':
+          description: Cliente actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cliente'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Clientes]
+      summary: Eliminar un cliente
+      responses:
+        '200':
+          description: Cliente eliminado (y mascotas en cascada)
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ==========================================
+  # MASCOTAS
+  # ==========================================
+  /api/mascotas:
+    get:
+      tags: [Mascotas]
+      summary: Obtener listado de mascotas (con JOIN a Cliente)
+      responses:
+        '200':
+          description: Lista de mascotas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Mascota'
+    post:
+      tags: [Mascotas]
+      summary: Registrar mascota
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MascotaInput'
+      responses:
+        '201':
+          description: Mascota creada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Mascota'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/mascotas/{id_mascota}:
+    parameters:
+      - in: path
+        name: id_mascota
+        required: true
+        schema:
+          type: integer
+    put:
+      tags: [Mascotas]
+      summary: Actualizar mascota
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MascotaInput'
+      responses:
+        '200':
+          description: Mascota actualizada
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Mascotas]
+      summary: Eliminar mascota
+      responses:
+        '200':
+          description: Mascota eliminada
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ==========================================
+  # VETERINARIOS
+  # ==========================================
+  /api/veterinarios:
+    get:
+      tags: [Veterinarios]
+      summary: Obtener catálogo de veterinarios
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Veterinario'
+    post:
+      tags: [Veterinarios]
+      summary: Registrar veterinario
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VeterinarioInput'
+      responses:
+        '201':
+          description: Creado
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/veterinarios/{id_veterinario}:
+    parameters:
+      - in: path
+        name: id_veterinario
+        required: true
+        schema:
+          type: integer
+    put:
+      tags: [Veterinarios]
+      summary: Editar veterinario
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VeterinarioInput'
+      responses:
+        '200':
+          description: Actualizado
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Veterinarios]
+      summary: Eliminar veterinario
+      responses:
+        '200':
+          description: Eliminado
+        '409':
+          description: No se puede eliminar por restricción de consultas médicas
+
+  # ==========================================
+  # CONSULTAS (Relación M:N)
+  # ==========================================
+  /api/consultas:
+    get:
+      tags: [Consultas]
+      summary: Historial de consultas médicas con tratamientos
+      responses:
+        '200':
+          description: Lista de consultas obtenida mediante múltiples JOINs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Consulta'
+    post:
+      tags: [Consultas]
+      summary: Registrar nueva consulta y asignar tratamientos
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConsultaInput'
+      responses:
+        '201':
+          description: Consulta y tabla pivote insertados vía transacción
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/consultas/{id_consulta}:
+    parameters:
+      - in: path
+        name: id_consulta
+        required: true
+        schema:
+          type: integer
+    put:
+      tags: [Consultas]
+      summary: Editar consulta médica
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConsultaInput'
+      responses:
+        '200':
+          description: Consulta y tabla pivote actualizados
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Consultas]
+      summary: Eliminar consulta (borra tabla pivote en cascada)
+      responses:
+        '200':
+          description: Eliminado
+
+  # ==========================================
+  # TRATAMIENTOS
+  # ==========================================
+  /api/tratamientos:
+    get:
+      tags: [Tratamientos]
+      summary: Catálogo de tratamientos
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Tratamiento'
+    post:
+      tags: [Tratamientos]
+      summary: Crear tratamiento
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TratamientoInput'
+      responses:
+        '201':
+          description: Creado
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/tratamientos/{id_tratamiento}:
+    parameters:
+      - in: path
+        name: id_tratamiento
+        required: true
+        schema:
+          type: integer
+    put:
+      tags: [Tratamientos]
+      summary: Editar tratamiento
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TratamientoInput'
+      responses:
+        '200':
+          description: Actualizado
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Tratamientos]
+      summary: Eliminar tratamiento
+      responses:
+        '200':
+          description: Eliminado
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+# ==========================================
+# COMPONENTES Y SCHEMAS
+# ==========================================
+components:
+  responses:
+    BadRequest:
+      description: Error de validación o constraint (NOT NULL, CHECK, tipo de dato)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Bad Request"
+            message: "El peso de la mascota debe ser mayor a 0 kg (Violación de restricción CHECK)."
+            code: "CHECK_VIOLATION"
+    NotFound:
+      description: Recurso no encontrado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Not Found"
+            message: "El registro con ID 99 no existe en la base de datos."
+            code: "RECORD_NOT_FOUND"
+    Conflict:
+      description: Error por restricción de integridad (UNIQUE, Foreign Key Restrict)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Conflict"
+            message: "La cédula profesional ya se encuentra registrada."
+            code: "UNIQUE_VIOLATION"
+
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        code:
+          type: string
+
+    ClienteInput:
+      type: object
+      required: [nombre]
+      properties:
+        nombre:
+          type: string
+          example: "Ana Laura Pérez"
+        telefono:
+          type: string
+          maxLength: 15
+          example: "33-1234-5678"
+        email:
+          type: string
+          format: email
+          example: "ana.perez@email.com"
+
+    Cliente:
+      allOf:
+        - $ref: '#/components/schemas/ClienteInput'
+        - type: object
+          properties:
+            id_cliente:
+              type: integer
+              example: 1
+            fecha_registro:
+              type: string
+              format: date
+              example: "2026-11-06"
+
+    MascotaInput:
+      type: object
+      required: [id_cliente, nombre, especie]
+      properties:
+        id_cliente:
+          type: integer
+          example: 1
+        nombre:
+          type: string
+          example: "Luna"
+        especie:
+          type: string
+          enum: [Perro, Gato, Ave, Conejo, Otro]
+          example: "Perro"
+        raza:
+          type: string
+          example: "Golden retriever"
+        fecha_nacimiento:
+          type: string
+          format: date
+          example: "2022-03-14"
+
+    Mascota:
+      allOf:
+        - $ref: '#/components/schemas/MascotaInput'
+        - type: object
+          properties:
+            id_mascota:
+              type: integer
+              example: 1
+            cliente_nombre:
+              type: string
+              description: "Obtenido mediante JOIN con tabla cliente"
+              example: "Ana Laura Pérez"
+
+    VeterinarioInput:
+      type: object
+      required: [nombre, especialidad, cedula_profesional]
+      properties:
+        nombre:
+          type: string
+          example: "Dra. Sofía Herrera"
+        especialidad:
+          type: string
+          example: "Medicina general"
+        cedula_profesional:
+          type: string
+          example: "VET-28451"
+
+    Veterinario:
+      allOf:
+        - $ref: '#/components/schemas/VeterinarioInput'
+        - type: object
+          properties:
+            id_veterinario:
+              type: integer
+              example: 1
+
+    ConsultaTratamientoInput:
+      type: object
+      required: [id_tratamiento]
+      properties:
+        id_tratamiento:
+          type: integer
+          example: 1
+        dosis_o_indicacion:
+          type: string
+          example: "Dosis única según peso."
+
+    ConsultaTratamientoOutput:
+      allOf:
+        - $ref: '#/components/schemas/ConsultaTratamientoInput'
+        - type: object
+          properties:
+            nombre_tratamiento:
+              type: string
+              example: "Desparasitación"
+
+    ConsultaInput:
+      type: object
+      required: [id_mascota, id_veterinario, fecha_consulta, motivo]
+      properties:
+        id_mascota:
+          type: integer
+          example: 1
+        id_veterinario:
+          type: integer
+          example: 1
+        fecha_consulta:
+          type: string
+          format: date
+          example: "2026-11-06"
+        motivo:
+          type: string
+          example: "Revisión general"
+        peso_kg:
+          type: number
+          format: float
+          example: 18.40
+        tratamientos:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConsultaTratamientoInput'
+
+    Consulta:
+      allOf:
+        - $ref: '#/components/schemas/ConsultaInput'
+        - type: object
+          properties:
+            id_consulta:
+              type: integer
+              example: 1
+            mascota_nombre:
+              type: string
+              example: "Luna"
+            cliente_nombre:
+              type: string
+              example: "Ana Laura Pérez"
+            veterinario_nombre:
+              type: string
+              example: "Dra. Sofía Herrera"
+            tratamientos:
+              type: array
+              items:
+                $ref: '#/components/schemas/ConsultaTratamientoOutput'
+
+    TratamientoInput:
+      type: object
+      required: [nombre]
+      properties:
+        nombre:
+          type: string
+          example: "Desparasitación"
+        descripcion:
+          type: string
+          example: "Tratamiento antiparasitario interno."
+        costo:
+          type: number
+          format: float
+          example: 350.00
+
+    Tratamiento:
+      allOf:
+        - $ref: '#/components/schemas/TratamientoInput'
+        - type: object
+          properties:
+            id_tratamiento:
+              type: integer
+              example: 1

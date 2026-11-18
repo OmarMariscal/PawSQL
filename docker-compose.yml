@@ -42,6 +42,8 @@ services:
     restart: always
     ports: 
       - "5173:5173"
+    environment:
+      API_PROXY_TARGET: http://backend:8080
     depends_on:
       - backend
     networks:
