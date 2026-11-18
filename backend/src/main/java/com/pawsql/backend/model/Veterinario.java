@@ -1,10 +1,16 @@
 package com.pawsql.backend.model;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 public class Veterinario {
 
+    @JsonProperty("id_veterinario")
     private Integer idVeterinario;
+
     private String nombre;
     private String especialidad;
+
+    @JsonProperty("cedula_profesional")
     private String cedulaProfesional;
 
     public Veterinario() {

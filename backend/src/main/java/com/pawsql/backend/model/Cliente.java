@@ -1,13 +1,18 @@
 package com.pawsql.backend.model;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.LocalDate;
 
 public class Cliente {
 
+    @JsonProperty("id_cliente")
     private Integer idCliente;
+
     private String nombre;
     private String telefono;
     private String email;
+
+    @JsonProperty("fecha_registro")
     private LocalDate fechaRegistro;
 
     public Cliente() {

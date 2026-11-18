@@ -6,6 +6,7 @@ import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.sql.Date;
 import java.util.List;
@@ -20,9 +21,10 @@ public class ConsultaRepository {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    private final RowMapper<Consulta> consultaRowMapper = (rs, rowNum) -> {
+    // RowMapper para consulta enriquecida con JOINs (usado en GET)
+    private final RowMapper<Consulta> consultaEnriquecidaRowMapper = (rs, rowNum) -> {
         Date fechaSql = rs.getDate("fecha_consulta");
-        return new Consulta(
+        Consulta c = new Consulta(
                 rs.getInt("id_consulta"),
                 rs.getInt("id_mascota"),
                 rs.getInt("id_veterinario"),
@@ -30,6 +32,10 @@ public class ConsultaRepository {
                 rs.getString("motivo"),
                 rs.getBigDecimal("peso_kg")
         );
+        c.setMascotaNombre(rs.getString("mascota_nombre"));
+        c.setClienteNombre(rs.getString("cliente_nombre"));
+        c.setVeterinarioNombre(rs.getString("veterinario_nombre"));
+        return c;
     };
 
     private final RowMapper<ConsultaTratamiento> detalleRowMapper = (rs, rowNum) -> new ConsultaTratamiento(
@@ -40,26 +46,51 @@ public class ConsultaRepository {
             rs.getBigDecimal("costo")
     );
 
+    // SQL base con JOINs para enriquecer la consulta
+    private static final String SQL_SELECT_ENRIQUECIDO = """
+        SELECT c.id_consulta, c.id_mascota, c.id_veterinario, c.fecha_consulta, c.motivo, c.peso_kg,
+               m.nombre AS mascota_nombre,
+               cl.nombre AS cliente_nombre,
+               v.nombre AS veterinario_nombre
+        FROM consulta c
+        INNER JOIN mascota m ON c.id_mascota = m.id_mascota
+        INNER JOIN cliente cl ON m.id_cliente = cl.id_cliente
+        INNER JOIN veterinario v ON c.id_veterinario = v.id_veterinario
+    """;
+
     // --- CRUD PRINCIPAL DE CONSULTAS ---
 
     public List<Consulta> obtenerTodas() {
-        String sql = "SELECT id_consulta, id_mascota, id_veterinario, fecha_consulta, motivo, peso_kg FROM consulta ORDER BY id_consulta ASC;";
-        return jdbcTemplate.query(sql, consultaRowMapper);
+        String sql = SQL_SELECT_ENRIQUECIDO + " ORDER BY c.id_consulta ASC;";
+        List<Consulta> consultas = jdbcTemplate.query(sql, consultaEnriquecidaRowMapper);
+        // Enriquecer cada consulta con su lista de tratamientos
+        for (Consulta consulta : consultas) {
+            consulta.setTratamientos(obtenerTratamientosPorConsulta(consulta.getIdConsulta()));
+        }
+        return consultas;
     }
 
     public Optional<Consulta> obtenerPorId(Integer id) {
-        String sql = "SELECT id_consulta, id_mascota, id_veterinario, fecha_consulta, motivo, peso_kg FROM consulta WHERE id_consulta = :id;";
+        String sql = SQL_SELECT_ENRIQUECIDO + " WHERE c.id_consulta = :id;";
         MapSqlParameterSource params = new MapSqlParameterSource("id", id);
-        List<Consulta> resultados = jdbcTemplate.query(sql, params, consultaRowMapper);
-        return resultados.stream().findFirst();
+        List<Consulta> resultados = jdbcTemplate.query(sql, params, consultaEnriquecidaRowMapper);
+        return resultados.stream().findFirst().map(c -> {
+            c.setTratamientos(obtenerTratamientosPorConsulta(c.getIdConsulta()));
+            return c;
+        });
     }
 
     public List<Consulta> obtenerPorMascota(Integer idMascota) {
-        String sql = "SELECT id_consulta, id_mascota, id_veterinario, fecha_consulta, motivo, peso_kg FROM consulta WHERE id_mascota = :idMascota ORDER BY fecha_consulta DESC;";
+        String sql = SQL_SELECT_ENRIQUECIDO + " WHERE c.id_mascota = :idMascota ORDER BY c.fecha_consulta DESC;";
         MapSqlParameterSource params = new MapSqlParameterSource("idMascota", idMascota);
-        return jdbcTemplate.query(sql, params, consultaRowMapper);
+        List<Consulta> consultas = jdbcTemplate.query(sql, params, consultaEnriquecidaRowMapper);
+        for (Consulta consulta : consultas) {
+            consulta.setTratamientos(obtenerTratamientosPorConsulta(consulta.getIdConsulta()));
+        }
+        return consultas;
     }
 
+    @Transactional
     public int crear(Consulta consulta) {
         String sql = """
             INSERT INTO consulta (id_mascota, id_veterinario, fecha_consulta, motivo, peso_kg)
@@ -72,13 +103,34 @@ public class ConsultaRepository {
                 .addValue("motivo", consulta.getMotivo())
                 .addValue("pesoKg", consulta.getPesoKg());
 
-        return jdbcTemplate.update(sql, params);
+        int filas = jdbcTemplate.update(sql, params);
+
+        // Insertar tratamientos en tabla pivote si vienen en el body
+        if (filas > 0 && consulta.getTratamientos() != null && !consulta.getTratamientos().isEmpty()) {
+            // Obtener el id generado de la consulta recién insertada
+            Integer nuevoId = jdbcTemplate.queryForObject(
+                    "SELECT MAX(id_consulta) FROM consulta WHERE id_mascota = :idMascota AND fecha_consulta = :fechaConsulta AND motivo = :motivo;",
+                    new MapSqlParameterSource()
+                            .addValue("idMascota", consulta.getIdMascota())
+                            .addValue("fechaConsulta", consulta.getFechaConsulta() != null ? Date.valueOf(consulta.getFechaConsulta()) : null)
+                            .addValue("motivo", consulta.getMotivo()),
+                    Integer.class
+            );
+            if (nuevoId != null) {
+                for (ConsultaTratamiento detalle : consulta.getTratamientos()) {
+                    agregarTratamiento(nuevoId, detalle);
+                }
+            }
+        }
+        return filas;
     }
 
+    @Transactional
     public int actualizar(Integer id, Consulta consulta) {
         String sql = """
             UPDATE consulta
-            SET id_mascota = :idMascota, id_veterinario = :idVeterinario, fecha_consulta = :fechaConsulta, motivo = :motivo, peso_kg = :pesoKg
+            SET id_mascota = :idMascota, id_veterinario = :idVeterinario, fecha_consulta = :fechaConsulta,
+                motivo = :motivo, peso_kg = :pesoKg
             WHERE id_consulta = :id;
         """;
         MapSqlParameterSource params = new MapSqlParameterSource()
@@ -89,7 +141,16 @@ public class ConsultaRepository {
                 .addValue("motivo", consulta.getMotivo())
                 .addValue("pesoKg", consulta.getPesoKg());
 
-        return jdbcTemplate.update(sql, params);
+        int filas = jdbcTemplate.update(sql, params);
+
+        // Reemplazar tratamientos en tabla pivote si vienen en el body
+        if (filas > 0 && consulta.getTratamientos() != null) {
+            eliminarTodosTratamientos(id);
+            for (ConsultaTratamiento detalle : consulta.getTratamientos()) {
+                agregarTratamiento(id, detalle);
+            }
+        }
+        return filas;
     }
 
     public int eliminar(Integer id) {
@@ -132,5 +193,11 @@ public class ConsultaRepository {
                 .addValue("idTratamiento", idTratamiento);
 
         return jdbcTemplate.update(sql, params);
+    }
+
+    private void eliminarTodosTratamientos(Integer idConsulta) {
+        String sql = "DELETE FROM consulta_tratamiento WHERE id_consulta = :idConsulta;";
+        MapSqlParameterSource params = new MapSqlParameterSource("idConsulta", idConsulta);
+        jdbcTemplate.update(sql, params);
     }
 }

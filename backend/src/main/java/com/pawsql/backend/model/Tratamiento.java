@@ -1,10 +1,13 @@
 package com.pawsql.backend.model;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.math.BigDecimal;
 
 public class Tratamiento {
 
+    @JsonProperty("id_tratamiento")
     private Integer idTratamiento;
+
     private String nombre;
     private String descripcion;
     private BigDecimal costo;

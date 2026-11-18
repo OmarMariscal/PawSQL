@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/consultas")
@@ -40,30 +41,33 @@ public class ConsultaController {
     }
 
     @PostMapping
-    public ResponseEntity<String> crear(@RequestBody Consulta consulta) {
+    public ResponseEntity<?> crear(@RequestBody Consulta consulta) {
         int filasAfectadas = consultaRepository.crear(consulta);
         if (filasAfectadas > 0) {
-            return ResponseEntity.status(HttpStatus.CREATED).body("Consulta creada exitosamente");
+            return ResponseEntity.status(HttpStatus.CREATED).build();
         }
-        return ResponseEntity.badRequest().body("No se pudo crear la consulta");
+        return ResponseEntity.badRequest()
+                .body(Map.of("error", "Bad Request", "message", "No se pudo crear la consulta", "code", "INSERT_FAILED"));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<String> actualizar(@PathVariable Integer id, @RequestBody Consulta consulta) {
+    public ResponseEntity<?> actualizar(@PathVariable Integer id, @RequestBody Consulta consulta) {
         int filasAfectadas = consultaRepository.actualizar(id, consulta);
         if (filasAfectadas > 0) {
-            return ResponseEntity.ok("Consulta actualizada exitosamente");
+            return ResponseEntity.ok().build();
         }
-        return ResponseEntity.notFound().build();
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(Map.of("error", "Not Found", "message", "El registro con ID " + id + " no existe en la base de datos.", "code", "RECORD_NOT_FOUND"));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> eliminar(@PathVariable Integer id) {
+    public ResponseEntity<?> eliminar(@PathVariable Integer id) {
         int filasAfectadas = consultaRepository.eliminar(id);
         if (filasAfectadas > 0) {
-            return ResponseEntity.noContent().build();
+            return ResponseEntity.ok().build();
         }
-        return ResponseEntity.notFound().build();
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(Map.of("error", "Not Found", "message", "El registro con ID " + id + " no existe en la base de datos.", "code", "RECORD_NOT_FOUND"));
     }
 
     // --- ENDPOINTS DE TRATAMIENTOS ASIGNADOS A UNA CONSULTA ---
@@ -74,20 +78,22 @@ public class ConsultaController {
     }
 
     @PostMapping("/{id}/tratamientos")
-    public ResponseEntity<String> asignarTratamiento(@PathVariable Integer id, @RequestBody ConsultaTratamiento detalle) {
+    public ResponseEntity<?> asignarTratamiento(@PathVariable Integer id, @RequestBody ConsultaTratamiento detalle) {
         int filasAfectadas = consultaRepository.agregarTratamiento(id, detalle);
         if (filasAfectadas > 0) {
-            return ResponseEntity.status(HttpStatus.CREATED).body("Tratamiento asignado a la consulta");
+            return ResponseEntity.status(HttpStatus.CREATED).build();
         }
-        return ResponseEntity.badRequest().body("No se pudo asignar el tratamiento");
+        return ResponseEntity.badRequest()
+                .body(Map.of("error", "Bad Request", "message", "No se pudo asignar el tratamiento", "code", "INSERT_FAILED"));
     }
 
     @DeleteMapping("/{id}/tratamientos/{idTratamiento}")
-    public ResponseEntity<Void> quitarTratamiento(@PathVariable Integer id, @PathVariable Integer idTratamiento) {
+    public ResponseEntity<?> quitarTratamiento(@PathVariable Integer id, @PathVariable Integer idTratamiento) {
         int filasAfectadas = consultaRepository.eliminarTratamiento(id, idTratamiento);
         if (filasAfectadas > 0) {
-            return ResponseEntity.noContent().build();
+            return ResponseEntity.ok().build();
         }
-        return ResponseEntity.notFound().build();
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(Map.of("error", "Not Found", "message", "Tratamiento no encontrado en la consulta", "code", "RECORD_NOT_FOUND"));
     }
 }

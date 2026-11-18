@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/mascotas")
@@ -37,29 +38,36 @@ public class MascotaController {
     }
 
     @PostMapping
-    public ResponseEntity<String> crear(@RequestBody Mascota mascota) {
+    public ResponseEntity<?> crear(@RequestBody Mascota mascota) {
         int filasAfectadas = mascotaRepository.crear(mascota);
         if (filasAfectadas > 0) {
-            return ResponseEntity.status(HttpStatus.CREATED).body("Mascota creada exitosamente");
+            return mascotaRepository.obtenerUltima()
+                    .map(m -> ResponseEntity.status(HttpStatus.CREATED).body((Object) m))
+                    .orElse(ResponseEntity.status(HttpStatus.CREATED).build());
         }
-        return ResponseEntity.badRequest().body("No se pudo crear la mascota");
+        return ResponseEntity.badRequest()
+                .body(Map.of("error", "Bad Request", "message", "No se pudo crear la mascota", "code", "INSERT_FAILED"));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<String> actualizar(@PathVariable Integer id, @RequestBody Mascota mascota) {
+    public ResponseEntity<?> actualizar(@PathVariable Integer id, @RequestBody Mascota mascota) {
         int filasAfectadas = mascotaRepository.actualizar(id, mascota);
         if (filasAfectadas > 0) {
-            return ResponseEntity.ok("Mascota actualizada exitosamente");
+            return mascotaRepository.obtenerPorId(id)
+                    .map(m -> ResponseEntity.ok((Object) m))
+                    .orElse(ResponseEntity.ok().build());
         }
-        return ResponseEntity.notFound().build();
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(Map.of("error", "Not Found", "message", "El registro con ID " + id + " no existe en la base de datos.", "code", "RECORD_NOT_FOUND"));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> eliminar(@PathVariable Integer id) {
+    public ResponseEntity<?> eliminar(@PathVariable Integer id) {
         int filasAfectadas = mascotaRepository.eliminar(id);
         if (filasAfectadas > 0) {
-            return ResponseEntity.noContent().build();
+            return ResponseEntity.ok().build();
         }
-        return ResponseEntity.notFound().build();
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(Map.of("error", "Not Found", "message", "El registro con ID " + id + " no existe en la base de datos.", "code", "RECORD_NOT_FOUND"));
     }
 }

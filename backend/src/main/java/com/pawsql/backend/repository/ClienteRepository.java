@@ -42,6 +42,12 @@ public class ClienteRepository {
         return resultados.stream().findFirst();
     }
 
+    public Optional<Cliente> obtenerUltimo() {
+        String sql = "SELECT id_cliente, nombre, telefono, email, fecha_registro FROM cliente ORDER BY id_cliente DESC LIMIT 1;";
+        List<Cliente> resultados = jdbcTemplate.query(sql, clienteRowMapper);
+        return resultados.stream().findFirst();
+    }
+
     public int crear(Cliente cliente) {
         String sql = """
             INSERT INTO cliente (nombre, telefono, email)
@@ -57,7 +63,7 @@ public class ClienteRepository {
 
     public int actualizar(Integer id, Cliente cliente) {
         String sql = """
-            UPDATE cliente 
+            UPDATE cliente
             SET nombre = :nombre, telefono = :telefono, email = :email
             WHERE id_cliente = :id;
         """;

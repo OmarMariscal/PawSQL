@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/clientes")
@@ -32,29 +33,36 @@ public class ClienteController {
     }
 
     @PostMapping
-    public ResponseEntity<String> crear(@RequestBody Cliente cliente) {
+    public ResponseEntity<?> crear(@RequestBody Cliente cliente) {
         int filasAfectadas = clienteRepository.crear(cliente);
         if (filasAfectadas > 0) {
-            return ResponseEntity.status(HttpStatus.CREATED).body("Cliente creado exitosamente");
+            return clienteRepository.obtenerUltimo()
+                    .map(c -> ResponseEntity.status(HttpStatus.CREATED).body((Object) c))
+                    .orElse(ResponseEntity.status(HttpStatus.CREATED).build());
         }
-        return ResponseEntity.badRequest().body("No se pudo crear el cliente");
+        return ResponseEntity.badRequest()
+                .body(Map.of("error", "Bad Request", "message", "No se pudo crear el cliente", "code", "INSERT_FAILED"));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<String> actualizar(@PathVariable Integer id, @RequestBody Cliente cliente) {
+    public ResponseEntity<?> actualizar(@PathVariable Integer id, @RequestBody Cliente cliente) {
         int filasAfectadas = clienteRepository.actualizar(id, cliente);
         if (filasAfectadas > 0) {
-            return ResponseEntity.ok("Cliente actualizado exitosamente");
+            return clienteRepository.obtenerPorId(id)
+                    .map(c -> ResponseEntity.ok((Object) c))
+                    .orElse(ResponseEntity.ok().build());
         }
-        return ResponseEntity.notFound().build();
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(Map.of("error", "Not Found", "message", "El registro con ID " + id + " no existe en la base de datos.", "code", "RECORD_NOT_FOUND"));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> eliminar(@PathVariable Integer id) {
+    public ResponseEntity<?> eliminar(@PathVariable Integer id) {
         int filasAfectadas = clienteRepository.eliminar(id);
         if (filasAfectadas > 0) {
-            return ResponseEntity.noContent().build();
+            return ResponseEntity.ok().build();
         }
-        return ResponseEntity.notFound().build();
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(Map.of("error", "Not Found", "message", "El registro con ID " + id + " no existe en la base de datos.", "code", "RECORD_NOT_FOUND"));
     }
 }

@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/veterinarios")
@@ -32,29 +33,32 @@ public class VeterinarioController {
     }
 
     @PostMapping
-    public ResponseEntity<String> crear(@RequestBody Veterinario veterinario) {
+    public ResponseEntity<?> crear(@RequestBody Veterinario veterinario) {
         int filasAfectadas = veterinarioRepository.crear(veterinario);
         if (filasAfectadas > 0) {
-            return ResponseEntity.status(HttpStatus.CREATED).body("Veterinario creado exitosamente");
+            return ResponseEntity.status(HttpStatus.CREATED).build();
         }
-        return ResponseEntity.badRequest().body("No se pudo crear el veterinario");
+        return ResponseEntity.badRequest()
+                .body(Map.of("error", "Bad Request", "message", "No se pudo crear el veterinario", "code", "INSERT_FAILED"));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<String> actualizar(@PathVariable Integer id, @RequestBody Veterinario veterinario) {
+    public ResponseEntity<?> actualizar(@PathVariable Integer id, @RequestBody Veterinario veterinario) {
         int filasAfectadas = veterinarioRepository.actualizar(id, veterinario);
         if (filasAfectadas > 0) {
-            return ResponseEntity.ok("Veterinario actualizado exitosamente");
+            return ResponseEntity.ok().build();
         }
-        return ResponseEntity.notFound().build();
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(Map.of("error", "Not Found", "message", "El registro con ID " + id + " no existe en la base de datos.", "code", "RECORD_NOT_FOUND"));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> eliminar(@PathVariable Integer id) {
+    public ResponseEntity<?> eliminar(@PathVariable Integer id) {
         int filasAfectadas = veterinarioRepository.eliminar(id);
         if (filasAfectadas > 0) {
-            return ResponseEntity.noContent().build();
+            return ResponseEntity.ok().build();
         }
-        return ResponseEntity.notFound().build();
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(Map.of("error", "Not Found", "message", "El registro con ID " + id + " no existe en la base de datos.", "code", "RECORD_NOT_FOUND"));
     }
 }
